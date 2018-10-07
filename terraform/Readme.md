@@ -2,6 +2,9 @@
 
 https://www.terraform.io
 
+All the resources created for this project will have the tag Project="harbor" to make
+them easily identifiable 
+
 ### Terraform installation
 
 The installation of terraform is as simple as downloading a zip compiled binary
@@ -108,7 +111,7 @@ rerun this command to reinitialize your working directory. If you forget, other
 commands will detect it and remind you to do so if necessary.
 ```
 
-#### VPC creation
+#### Resource creation
 
 To create the VPC issue the following command:
 
@@ -120,10 +123,29 @@ To create the VPC issue the following command:
 This command will show the plan of changes to apply and ask for confirmation.  Enter
 "yes" and the VPC will be created.
 
-#### VPC destruction
+#### Resource destruction
 
 When the VPC is no longer needed you can remove it using the command:
 
 ```shell
  # terraform destroy
 ```
+
+#### Subnets
+
+The VPC will contain two subnets: one public and one private.
+
+The public subnet will host the EC2 used as bastion hosts; the private subnet will
+host the harbor server.
+
+To create the subnets a data source is defined to get the names of the availability
+zones in the region:
+
+`data "aws_availability_zones" "avb-zones" {}`
+
+Later the names are extracted with:
+
+`availability_zone = "${data.aws_availability_zones.avb-zones.names[0]}"`
+
+The subnets must have different names (subnet1; subnet2); different address blocks
+wihin the VPC address space (172.20.1.0/24; 172.20.2.0/24); 
