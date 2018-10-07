@@ -181,3 +181,20 @@ Two security groups are created one to allow inbound ssh connections from the ne
 185.229.0.0/16 corresponding with the addresss space of MedinaNet.  The other to
 allow http and https outbound connections from the EC2 instances so they can install
 and update packages.
+
+### EC2 instances
+
+Once we have the networking part of the configuration all sorted out, we can start
+deploying the servers.
+
+First we add the bastion host to the public subnet, this will use a Redhat 7.5 image
+installed on a t2.micro instance; the host is placed in the public subnet and applyed
+the security groups that allow ssh connections to the machine and outgoing web
+connectios; finally we assign an ssh key to connect with and a pair of tags.
+
+After deploying all the infrastructure defined so far we can connect to the bastion
+host with a command like:
+
+```shell
+# ssh -i ~/Descargas/tale_toul-keypair-ireland.pem ec2-user@ec2-52-49-13-213.eu-west-1.compute.amazonaws.com
+```

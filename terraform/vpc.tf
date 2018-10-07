@@ -115,3 +115,17 @@ resource "aws_security_group" "sg-web-out" {
     }
 }
 
+#EC2 instances
+resource "aws_instance" "bastion" {
+  #Redhat 7.5
+  ami = "ami-7c491f05"
+  instance_type = "t2.micro"
+  subnet_id = "${aws_subnet.subnet1.id}"
+  vpc_security_group_ids = ["${aws_security_group.sg-ssh-in.id}","${aws_security_group.sg-web-out.id}"]
+  key_name= "tale_toul-keypair-ireland"
+
+    tags {
+        Name = "bastion"
+        Project = "harbor"
+    }
+}
