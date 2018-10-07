@@ -70,3 +70,48 @@ resource "aws_route_table_association" "rtabasso" {
     subnet_id = "${aws_subnet.subnet1.id}"
     route_table_id = "${aws_route_table.rtable.id}"
 }
+
+#SECURITI GROUPS
+resource "aws_security_group" "sg-ssh-in" {
+    name = "ssh-in"
+    description = "Allow ssh connections from MedinaNet"
+    vpc_id = "${aws_vpc.vpc.id}"
+
+	ingress {
+		from_port = 22
+		to_port = 22
+		protocol = "tcp"
+		cidr_blocks = ["185.229.0.0/16"]
+    }
+
+    tags {
+        Name = "sg-ssh"
+        Project = "harbor"
+    }
+}
+
+resource "aws_security_group" "sg-web-out" {
+    name = "web-out"
+    description = "Allow http and https outgoing connections"
+    vpc_id = "${aws_vpc.vpc.id}"
+
+	egress {
+		from_port = 80
+		to_port = 80
+		protocol = "tcp"
+		cidr_blocks = ["0.0.0.0/0"]
+	}
+
+	egress {
+		from_port = 443
+		to_port = 443
+		protocol = "tcp"
+		cidr_blocks = ["0.0.0.0/0"]
+	}
+
+    tags {
+        Name = "sg-web-out"
+        Project = "harbor"
+    }
+}
+

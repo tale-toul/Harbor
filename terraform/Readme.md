@@ -151,7 +151,8 @@ The subnets must have different names (subnet1; subnet2); different address bloc
 wihin the VPC address space (172.20.1.0/24; 172.20.2.0/24); 
 
 Subnet1 is made a public subnet by assigning public IPs to the EC2 instances launched
-inside of it.
+inside of it, and providing a routing table with a "default" entry that connects to
+an Internet Gateway, more on this later.
 
 `map_public_ip_on_launch = true`
 
@@ -173,3 +174,10 @@ We create a route table and add the aforementioned entry, then next we associate
 route table with the public subnet1, and with no other.  We only need to create the
 "default" route entry, the one for the local traffic is created automatically when
 the route table is created in the VPC.
+
+#### Security groups
+
+Two security groups are created one to allow inbound ssh connections from the network
+185.229.0.0/16 corresponding with the addresss space of MedinaNet.  The other to
+allow http and https outbound connections from the EC2 instances so they can install
+and update packages.
