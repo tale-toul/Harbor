@@ -162,3 +162,14 @@ For the public subnet1 to communicate with the Internet it needs an Internet Gat
 The Internet Gateway is created and associated with the VPC not a particular subnet.
 Later we will use a route table to allow instances in the public subnet1 to send and
 receive network packets to and from the Internet.
+
+#### ROUTE TABLE AND ASSOCIATION
+
+To allow the instances in the public subnet1 to communicate with the Internet we need
+to associate a route table only with this subnet that includes an entry saying that
+any traffic not sent to the VPC will be sent to the Internet Gateway.
+
+We create a route table and add the aforementioned entry, then next we associate the
+route table with the public subnet1, and with no other.  We only need to create the
+"default" route entry, the one for the local traffic is created automatically when
+the route table is created in the VPC.
