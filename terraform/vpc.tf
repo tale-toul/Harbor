@@ -3,6 +3,7 @@ provider "aws" {
     version = "~> 1.39"
 }
 
+#VPC
 resource "aws_vpc" "vpc" {
     cidr_block = "172.20.0.0/16"
     enable_dns_hostnames = true
@@ -13,6 +14,7 @@ resource "aws_vpc" "vpc" {
     }
 }
 
+#SUBNETS
 data "aws_availability_zones" "avb-zones" {}
 
 resource "aws_subnet" "subnet1" {
@@ -35,6 +37,16 @@ resource "aws_subnet" "subnet2" {
 
     tags {
         Name = "subnet2"
+        Project = "harbor"
+    }
+}
+
+#INTERNET GATEWAY
+resource "aws_internet_gateway" "intergw" {
+    vpc_id = "${aws_vpc.vpc.id}"
+
+    tags {
+        Name = "intergw"
         Project = "harbor"
     }
 }

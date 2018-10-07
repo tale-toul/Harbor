@@ -149,3 +149,16 @@ Later the names are extracted with:
 
 The subnets must have different names (subnet1; subnet2); different address blocks
 wihin the VPC address space (172.20.1.0/24; 172.20.2.0/24); 
+
+Subnet1 is made a public subnet by assigning public IPs to the EC2 instances launched
+inside of it.
+
+`map_public_ip_on_launch = true`
+
+#### Internet Gateway
+
+For the public subnet1 to communicate with the Internet it needs an Internet Gateway.
+
+The Internet Gateway is created and associated with the VPC not a particular subnet.
+Later we will use a route table to allow instances in the public subnet1 to send and
+receive network packets to and from the Internet.
