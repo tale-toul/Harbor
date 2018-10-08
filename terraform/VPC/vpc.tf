@@ -3,6 +3,12 @@ provider "aws" {
     version = "~> 1.39"
 }
 
+terraform {
+    backend "local" {
+        path = "terraform.tfstate"
+    }
+}
+
 #VPC
 resource "aws_vpc" "vpc" {
     cidr_block = "172.20.0.0/16"
@@ -71,7 +77,7 @@ resource "aws_route_table_association" "rtabasso" {
     route_table_id = "${aws_route_table.rtable.id}"
 }
 
-#SECURITI GROUPS
+#SECURITY GROUPS
 resource "aws_security_group" "sg-ssh-in" {
     name = "ssh-in"
     description = "Allow ssh connections from MedinaNet"

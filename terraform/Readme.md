@@ -47,6 +47,76 @@ Security Credentials
 
 This variables are only defined for the current shell.
 
+### Project structure
+
+The terraform project will consist of several connected elements, each one of the
+will reside in its own separate directory, with this we can start, stop and modify
+each element without affecting the others.
+
+The directories that will be created initially are: 
+
+* VPC.- This will hold the code to create the VPC and other network related resources
+
+* NAT_gateway.- This direcotory will hold the NAT gateway.
+
+#### Remote state and backends
+
+For the different elements to be able to access data from other elements, necessary
+for example to add the NAT gateway to the subnet defined in the VPC, we have to
+define a remote state that will be kept in a backend.
+
+The backend used will be *local* which is just the normal local file
+terraform.tfstate but explicitily declared so that later another element can access
+it.  
+
+To define the local backend for the VPC code we add the following code to the vpc.tf
+file:
+
+```
+terraform {
+    backend "local" {
+        path = "terraform.tfstate"
+    }
+}
+
+```
+
+The path is relative to where the vpc.tf file is found.
+
+The remote state data source is defined in the code of the element that wants to
+access the data, for example from the NAT gateway's nat.tf file we add the following
+definition:
+
+```
+data "terraform_remote_state" "vpc" {
+    backend = "local"
+
+    config {
+        path = "../terraform.tfstate"
+    }
+}
+
+```
+
+With this we declare the vpc data source to access the remote state found in a local
+backend at the relative path ../terraform.tfstate.
+
+From now on we can export output variables from the VPC element and use them in the
+NAT gateway element. For example:
+
+Output variable found in VPC:
+
+```
+output "subnet1_id" {
+    value = "${aws_subnet.subnet1.id}"
+}
+```
+Variable used from NAT gateway:
+
+```
+ subnet_id = "${data.terraform_remote_state.vpc.subnet1_id}"
+```
+
 ### Deploy a VPC
 
 The harbor project will be deployed in its own infrastructure, starting with a VPC,
@@ -80,9 +150,11 @@ Then a Name and Project tag is defined.
 
 #### Terraform initialization
 
-Before first use of the terraform command you have to initialize the plugins in the
-by running the _init_ subcommand in the directory where you terraform files will
-reside:
+There are several ocations when it is necessary to initialize terraform:
+
+* Before first use of the terraform command you have to initialize the plugins in the
+  by running the _init_ subcommand in the directory where you terraform files will
+  reside:
 
 ```shell
  # terraform init
@@ -110,6 +182,12 @@ If you ever set or change modules or backend configuration for Terraform,
 rerun this command to reinitialize your working directory. If you forget, other
 commands will detect it and remind you to do so if necessary.
 ```
+
+* After making a new subdirectory to keep the terraform files for an element in the
+  project 
+
+* After defining a backend to be used to keep the state information of terraform in
+  any subdirectory
 
 #### Resource creation
 
@@ -164,7 +242,7 @@ The Internet Gateway is created and associated with the VPC not a particular sub
 Later we will use a route table to allow instances in the public subnet1 to send and
 receive network packets to and from the Internet.
 
-#### ROUTE TABLE AND ASSOCIATION
+#### Route table and association
 
 To allow the instances in the public subnet1 to communicate with the Internet we need
 to associate a route table only with this subnet that includes an entry saying that
@@ -181,6 +259,30 @@ Two security groups are created one to allow inbound ssh connections from the ne
 185.229.0.0/16 corresponding with the addresss space of MedinaNet.  The other to
 allow http and https outbound connections from the EC2 instances so they can install
 and update packages.
+
+#### NAT gateway
+
+For the servers in the private subnet2 to access outside services like installing or
+updating packages, we need a NAT gateway.
+
+The NAT gateway must be connected to the public subnet, and it also needs an elastic
+IP address (IPv4 only) attached to the NAT gateway.
+
+First we create the elastic IP, then the NAT gateway.
+
+The NAT gateway and elastic IP are defined in its own directory so we can create
+and destroy them easily when necessary, since you get charged for them even if you
+don't use them.
+
+We create the new directory and the nat.tf file to describe the element:
+
+```shell
+# mkdir NAT_gateway
+# vim nat.tf
+```
+
+The nat.tf file contains a datasource definition for the remote state of the VPC
+element, then the definitions for the elastic IP and the NAT gateway itself.
 
 ### EC2 instances
 
