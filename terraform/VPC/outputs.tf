@@ -11,7 +11,10 @@ output "vpc_id" {
     value = "${aws_vpc.vpc.id}"
 }
 
-
 output "bastion_name" {
-    value= "{aws_instance.bastion.public_dns}"
+    value= "${aws_instance.bastion.public_dns}"
+}
+
+output "registry_IP" {
+    value = "${aws_instance.registry.private_ip}"
 }

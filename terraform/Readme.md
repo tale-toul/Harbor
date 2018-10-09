@@ -255,10 +255,19 @@ the route table is created in the VPC.
 
 #### Security groups
 
-Two security groups are created one to allow inbound ssh connections from the network
-185.229.0.0/16 corresponding with the addresss space of MedinaNet.  The other to
-allow http and https outbound connections from the EC2 instances so they can install
-and update packages.
+A few security groups are created:
+
+* sg-ssh-in.- To allow inbound ssh connections from the network 185.229.0.0/16
+  corresponding with the addresss space of MedinaNet.  
+
+* sg-ssh-out.- To allow outgoing ssh connections to any IP within the VPC network
+  172.20.0.0/16
+
+* sg-ssh-in-local.- To allow inbound ssh connections from any IP within the VPC network
+  172.20.0.0/16
+
+* sg-web-out.- To allow http and https outbound connections from the EC2 instances to any
+  IP so they can install and update packages.
 
 #### NAT gateway
 
@@ -296,13 +305,56 @@ Once we have the networking part of the configuration all sorted out, we can sta
 deploying the servers.
 
 First we add the bastion host to the public subnet, this will use a Redhat 7.5 image
-installed on a t2.micro instance; the host is placed in the public subnet and applyed
-the security groups that allow ssh connections to the machine and outgoing web
-connectios; finally we assign an ssh key to connect with and a pair of tags.
+installed on a t2.micro instance; the host is placed in the public subnet and applied
+the security groups sg-ssh-in; sg-ssh-out and sg-web-out that allow ssh connections from
+the Medinanet network, connect via ssh to other instances in the VPC and connect to any
+web server via http or https; finally we assign an ssh key to connect with and a pair of
+tags.
 
-After deploying all the infrastructure defined so far we can connect to the bastion
-host with a command like:
+The the registry server that will contain harbor is created in the private subnet2, is
+similar to the bastión host, at least for the moment, later it will have to be a more
+powerfull machine.  The security group for ssh connections (sg-ssh-in-local) only allows
+connections from other instances in the VPC network 172.20.0.0/16, the security group for
+the outgoing connections is the same that the bastion server uses, but it could be tighten
+more because the registry will only be able to connect to IPs in the VPC.
+
+### How to connect to the instances
+
+After deploying all the infrastructure defined so far we can connect to the instances usin
+ssh.  
+
+To connect to the bastion host we use a command like:
 
 ```shell
 # ssh -i ~/Descargas/tale_toul-keypair-ireland.pem ec2-user@ec2-52-49-13-213.eu-west-1.compute.amazonaws.com
 ```
+
+This command uses the ssh private certificate assigned to the instance during creation.
+The user connecting is predefined by AWS to be **ec2-user**.  The public DNS name is
+obtained from the output variable bastion_name.
+
+Connecting to the registry host is a bit more complicated since this server is in a
+private network and doesn't have a public IP or name.  We have to connect to the bastion
+host and the connect to the registry host.  For this double jump to work we have configure
+SSH agent forwarding, we do this in two steps:
+
+* First we have to add in our local host the configuration option **ForwardAgent yes** 
+  in the file ~/.ssh/config:
+
+```
+Host *
+	ForwardAgent yes
+```
+
+* Then we have to add the ssh key to the SSH agent with the command:
+
+`$ ssh-add ~/Descargas/tale_toul-keypair-ireland.pem`
+
+To check that the key has been added use the command:
+
+`$ ssh-add -L`
+
+Now we can connect to the bastion host as before and then to the registry host using its
+private IP or name:
+
+`[ec2-user@ip-172-20-1-33 ~]$ ssh ec2-user@172.20.2.142`

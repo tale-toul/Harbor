@@ -96,6 +96,41 @@ resource "aws_security_group" "sg-ssh-in" {
     }
 }
 
+resource "aws_security_group" "sg-ssh-out" {
+    name = "ssh-out"
+    description = "Allow outgoing ssh connections to the VPC network"
+    vpc_id = "${aws_vpc.vpc.id}"
+
+	egress {
+		from_port = 22
+		to_port = 22
+		protocol = "tcp"
+		cidr_blocks = ["172.20.0.0/16"]
+    }
+
+    tags {
+        Name = "sg-ssh-out"
+        Project = "harbor"
+    }
+}
+resource "aws_security_group" "sg-ssh-in-local" {
+    name = "ssh-in-local"
+    description = "Allow ssh connections from VPC"
+    vpc_id = "${aws_vpc.vpc.id}"
+
+	ingress {
+		from_port = 22
+		to_port = 22
+		protocol = "tcp"
+		cidr_blocks = ["172.20.0.0/16"]
+    }
+
+    tags {
+        Name = "sg-ssh-local"
+        Project = "harbor"
+    }
+}
+
 resource "aws_security_group" "sg-web-out" {
     name = "web-out"
     description = "Allow http and https outgoing connections"
@@ -127,11 +162,27 @@ resource "aws_instance" "bastion" {
   ami = "ami-7c491f05"
   instance_type = "t2.micro"
   subnet_id = "${aws_subnet.subnet1.id}"
-  vpc_security_group_ids = ["${aws_security_group.sg-ssh-in.id}","${aws_security_group.sg-web-out.id}"]
+  vpc_security_group_ids = ["${aws_security_group.sg-ssh-in.id}",
+                            "${aws_security_group.sg-web-out.id}",
+                            "${aws_security_group.sg-ssh-out.id}"]
   key_name= "tale_toul-keypair-ireland"
 
     tags {
         Name = "bastion"
+        Project = "harbor"
+    }
+}
+
+resource "aws_instance" "registry" {
+  #Redhat 7.5
+  ami = "ami-7c491f05"
+  instance_type = "t2.micro"
+  subnet_id = "${aws_subnet.subnet2.id}"
+  vpc_security_group_ids = ["${aws_security_group.sg-ssh-in-local.id}","${aws_security_group.sg-web-out.id}"]
+  key_name= "tale_toul-keypair-ireland"
+
+    tags {
+        Name = "registry"
         Project = "harbor"
     }
 }
