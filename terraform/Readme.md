@@ -262,16 +262,21 @@ and update packages.
 
 #### NAT gateway
 
-For the servers in the private subnet2 to access outside services like installing or
-updating packages, we need a NAT gateway.
+[AWS documentation](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html)
 
-The NAT gateway must be connected to the public subnet, and it also needs an elastic
-IP address (IPv4 only) attached to the NAT gateway.
+For the servers in the private subnet2 to be able to access outside services like
+installing or updating packages, we need a NAT gateway.
 
-First we create the elastic IP, then the NAT gateway.
+The NAT gateway must be connected to the public subnet, and needs an elastic IP address
+(IPv4 only) attached to it.
 
-The NAT gateway and elastic IP are defined in its own directory so we can create
-and destroy them easily when necessary, since you get charged for them even if you
+A route table must be created and assigned to the private subnet, with a default route to
+the NAT gateway.
+
+First we create the elastic IP, then the NAT gateway and finally the route table.
+
+The NAT gateway, elastic IP and route table are all defined in its own directory so we can
+create and destroy them easily when necessary, since you get charged for them even if you
 don't use them.
 
 We create the new directory and the nat.tf file to describe the element:
@@ -282,7 +287,8 @@ We create the new directory and the nat.tf file to describe the element:
 ```
 
 The nat.tf file contains a datasource definition for the remote state of the VPC
-element, then the definitions for the elastic IP and the NAT gateway itself.
+element so the subnet and vpc ids are available from here, then the definitions for the
+elastic IP and the NAT gateway itself.
 
 ### EC2 instances
 
