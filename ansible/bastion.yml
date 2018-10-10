@@ -1,0 +1,20 @@
+---
+- name: Set up the bastion host as an ansible controller host
+  hosts: bastion
+  remote_user: ec2-user
+  become: True
+
+  tasks:
+    - name: Install EPEL repository
+      yum:
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+        state: present
+    - name: Update packages
+      yum: 
+        name: '*'
+        state: latest
+    - name: Install ansible
+      yum:
+        name: ansible
+        state: present
+...
