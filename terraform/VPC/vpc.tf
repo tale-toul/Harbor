@@ -174,8 +174,8 @@ resource "aws_instance" "bastion" {
 }
 
 resource "aws_instance" "registry" {
-  #Redhat 7.5
-  ami = "ami-7c491f05"
+  #Centos 7.5
+  ami = "ami-3548444c"
   instance_type = "t2.micro"
   subnet_id = "${aws_subnet.subnet2.id}"
   vpc_security_group_ids = ["${aws_security_group.sg-ssh-in-local.id}","${aws_security_group.sg-web-out.id}"]
