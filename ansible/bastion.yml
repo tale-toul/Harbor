@@ -19,8 +19,13 @@
 #      yum:
 #        name: '*'
 #        state: latest
-    - name: Install ansible
+    - name: Install ansible and docker
       yum:
-        name: ansible
+        name: ansible, docker
         state: present
+    - name: Enable and start docker service
+      service:
+        name: docker
+        state: started
+        enabled: True
 ...
