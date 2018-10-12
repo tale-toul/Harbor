@@ -1,2 +1,2 @@
 [bastion]
-ec2-34-245-72-227.eu-west-1.compute.amazonaws.com
+ec2-52-211-33-67.eu-west-1.compute.amazonaws.com ansible_user=centos
