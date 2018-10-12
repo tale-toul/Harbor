@@ -158,7 +158,7 @@ resource "aws_security_group" "sg-web-out" {
 
 #EC2 instances
 resource "aws_instance" "bastion" {
-  #Redhat 7.5
+  #Centos 7.5
   ami = "ami-3548444c"
   instance_type = "t2.micro"
   subnet_id = "${aws_subnet.subnet1.id}"

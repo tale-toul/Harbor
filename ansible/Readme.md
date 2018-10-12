@@ -8,13 +8,15 @@ which basically consists on installing ansible, this we will do from the rpm pac
 
 We use ansible from a local machine to setup ansible in the bastion host.
 
-The inventory file will contain a group of one host called bastion with the DNS name of
-the bastion host, this name will change on every running of the terraform files so a
-dinamy inventory could be a good idea here.
+The inventory file will contain a group of one host called _bastion_ with the DNS name of
+the bastion host and the remote user to connect via ssh.  This name will change on every
+execution of terraform so a dynamic inventory could be a good idea here.  The
+*ansible_user* must match the default user of the ami, in RedHat it is __ec2-user__, in
+CentOS it is __centos__
 
 ```
 [bastion]
-ec2-34-245-72-227.eu-west-1.compute.amazonaws.com
+ec2-52-211-33-67.eu-west-1.compute.amazonaws.com ansible_user=centos
 ```
 
 The ansible.cfg file will contain the following options:
@@ -40,18 +42,20 @@ The playbook to install ansible is:
 ---
 - name: Set up the bastion host as an ansible controller host
   hosts: bastion
-  remote_user: ec2-user
   become: True
 
   tasks:
-    - name: Install EPEL repository
+    - name: Install EPEL repository on RedHat
       yum:
         name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
         state: present
-    - name: Update packages
-      yum: 
-        name: '*'
-        state: latest
+      when: ansible_distribution == 'RedHat'
+    - name: Install EPEL repository on CentOS
+      yum:
+        name: epel-release
+        state: present
+      remote_user: centos
+      when: ansible_distribution == 'CentOS'
     - name: Install ansible
       yum:
         name: ansible
@@ -59,14 +63,12 @@ The playbook to install ansible is:
 ...
 ```
 
-We use the remote user *ec2-user* which is the available user in most of the aws AMIs,
-then run the tasks as root (become=true).
+We need to run the tasks as root (become=true).
 
-The first task installs the rpm package that enables the EPEL repository.
+The first task installs the rpm package that enables the EPEL repository, this task is
+different between RedHat and CentOS hosts
 
-The second task updates the already installed packages
-
-The third task install ansible proper.
+The second task installs ansible proper.
 
 To run the playbook use the following command:
 
