@@ -21,7 +21,7 @@
 #        state: latest
     - name: Install ansible and docker
       yum:
-        name: ansible, docker
+        name: ansible, docker, docker-compose
         state: present
     - name: Enable and start docker service
       service:

@@ -58,7 +58,7 @@ The playbook to install ansible is:
       when: ansible_distribution == 'CentOS'
     - name: Install ansible and docker
       yum:
-        name: ansible, docker
+        name: ansible, docker, docker-compose
         state: present
     - name: Enable and start docker service
       service:
@@ -66,7 +66,6 @@ The playbook to install ansible is:
         state: started
         enabled: True
 ...
-
 ```
 
 The tasks have to be run as root (become=true).
@@ -74,7 +73,7 @@ The tasks have to be run as root (become=true).
 The first task installs the rpm package that enables the EPEL repository, this task is
 different between RedHat and CentOS hosts
 
-The second task installs ansible and docker.
+The second task installs ansible, docker and docker compose.
 
 Then the docker service is started and enabled.
 
