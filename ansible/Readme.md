@@ -178,7 +178,7 @@ __ec2-user__, in CentOS it is __centos__
 
 The inventory file also contains the group _registry_ with the private IP of the registry
 server, this address is not directly accesible from the outside world, see [SSH connection
-to the registry host](### SSH connection to the registry host).  This addess changes on
+to the registry host][### SSH connection to the registry host].  This addess changes on
 every execution of the terraform plan.
 
 The vars section of the registry group contains the ssh configuration needed to connect to
