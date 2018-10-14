@@ -1,22 +1,120 @@
 ## Ansible playbooks to setup harbor
 
-### Set up the bastion host
+### SSH connection to the registry host
 
-We are going to use the bastion host created in the public subnet as the ansible
-controller, so the first order of business is setting up this host as such controller,
-which basically consists on installing ansible, this we will do from the rpm packages.
+The registry host is placed in a private subnet not directly accesible from the outside
+since it doesn't have a public name or IP address, only other hosts in the VPC can access
+it.
 
-We use ansible from a local machine to setup ansible in the bastion host.
+We are using a bastion host created in the public subnet to indirectly connect to the
+registry host both using ssh and ansible.  This way we can run the ansible playbooks from
+the local workstation and there's no need to install ansible in the bastion host.
 
-The inventory file will contain a group of one host called _bastion_ with the DNS name of
-the bastion host and the remote user to connect via ssh.  This name will change on every
-execution of terraform so a dynamic inventory could be a good idea here.  The
-*ansible_user* must match the default user of the ami, in RedHat it is __ec2-user__, in
-CentOS it is __centos__
+To connect to the registry host with ssh via the bastion host we have to add some
+configuration to the ssh client config file in the local machine.
+
+The registry host is in the network 172.20.2.0/24 and the bastion host has a public IP and
+DNS name (ec2-34-249-106-182.eu-west-1.compute.amazonaws.com).  The required configuration
+is:
+
+```
+Host 172.20.*.*
+        IdentityFile /home/tale/Descargas/tale_toul-keypair-ireland.pem
+        ProxyCommand ssh centos@ec2-34-249-106-182.eu-west-1.compute.amazonaws.com -W %h:%p 
+
+Host ec2-34-249-106-182.eu-west-1.compute.amazonaws.com
+        IdentityFile /home/tale/Descargas/tale_toul-keypair-ireland.pem
+```
+
+The first part applies to any host accessed with an IP in the 172.20.0.0/16 network.  The
+next line specifies the private key used to authenticate with the hosts in the network:
+
+`IdentityFile /home/tale/Descargas/tale_toul-keypair-ireland.pem`
+
+The next line specifies that to connect to the hosts in the 172.20.0.0/16 network a proxy
+connection has to be opened through the host
+**ec2-34-249-106-182.eu-west-1.compute.amazonaws.com** with the user **centos**:
+
+`ProxyCommand ssh centos@ec2-34-249-106-182.eu-west-1.compute.amazonaws.com -W %h:%p`
+
+We also have to add a config block for the bastion host:
+
+```
+Host ec2-34-249-106-182.eu-west-1.compute.amazonaws.com
+        IdentityFile /home/tale/Descargas/tale_toul-keypair-ireland.pem
+```
+
+This block specifies the ssh key to use when authenticating with the bastion host.
+
+Finally we have to start the ssh-agent and add the key
+
+```
+# ssh-agent bash
+# ssh-add /home/tale/Descargas/tale_toul-keypair-ireland.pem
+```
+
+Now we can connect to the registry host with a simple ssh command like, in this example we
+have added the configuration to the ssh.cfg file:
+
+`# ssh -F ssh.cfg centos@172.20.2.79`
+
+One important thing to notice is that the 172.20.2.0/24 network is not accesible from the
+localhost where the command is issued.
+
+To apply this setup to ansible we define the variable ansible_ssh_common_args for the
+group of hosts in the private network, for example in the inventory file:
+
+```
+...
+[registry]
+172.20.2.79 
+
+[registry:vars]
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@ec2-34-249-106-182.eu-west-1.compute.amazonaws.com"'
+ansible_user=centos
+```
+
+We still need the to start ssh-agent and add the key as before.  Now we can run ansible
+commands or playbooks against the hosts in the private network:
+
+`# ansible registry -m ping`
+
+`# ansible-playbook harbor.yml`
+
+### Installing docker and docker compose with ansible 
+
+All servers (bastion and registry) need docker and docker compose installed.  We use
+ansible from a local workstation to install these packages and active the docker service.
+
+The inventory file will contain a single host group called _bastion_ with the DNS name of
+the bastion host, this name changes on every execution of the terraform plan so a dynamic
+mechanism to update the inventory would be a good idea.  
+
+The vars of the bastion group consist of the remote remote user to connect via ssh to this
+host.  The *ansible_user* must match the default user of the ami, in RedHat it is
+__ec2-user__, in CentOS it is __centos__
+
+The inventory file also contains the group _registry_ with the private IP of the registry
+server, this address is not directly accesible from the outside world, see [SSH connection
+to the registry host](### SSH connection to the registry host).  This addess changes on
+every execution of the terraform plan.
+
+The vars section of the registry group contains the ssh configuration needed to connect to
+the registry host, and the remote user to connect as.
 
 ```
 [bastion]
-ec2-52-211-33-67.eu-west-1.compute.amazonaws.com ansible_user=centos
+ec2-34-245-13-203.eu-west-1.compute.amazonaws.com
+
+[bastion:vars]
+ansible_user=centos
+
+[registry]
+172.20.2.23
+
+[registry:vars]
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@ec2-34-245-13-203.eu-west-1.compute.amazonaws.com"'
+ansible_user=centos
 ```
 
 The ansible.cfg file will contain the following options:
@@ -36,12 +134,12 @@ The meaning of this options is:
 * private_key_file=/home/tale/Descargas/tale_toul-keypair-ireland.pem.- This is the
   private key used to connect to the managed hosts.
 
-The playbook to install ansible is:
+The contents of the main playbook are:
 
 ```
 ---
 - name: Set up the bastion host as an ansible controller host
-  hosts: bastion
+  hosts: all
   become: True
 
   tasks:
@@ -56,9 +154,9 @@ The playbook to install ansible is:
         state: present
       remote_user: centos
       when: ansible_distribution == 'CentOS'
-    - name: Install ansible and docker
+    - name: Install docker and docker compose
       yum:
-        name: ansible, docker, docker-compose
+        name: docker, docker-compose
         state: present
     - name: Enable and start docker service
       service:
@@ -67,19 +165,20 @@ The playbook to install ansible is:
         enabled: True
 ...
 ```
+The first play is executed against all hosts defined in the inventory.
 
-The tasks have to be run as root (become=true).
+All tasks have to be run as root (become=true).
 
-The first task installs the rpm package that enables the EPEL repository, this task is
-different between RedHat and CentOS hosts
+The first task adds the EPEL repository, needed to later install docker compose. There is
+one task for RedHat servers and another for CentOS servers.
 
-The second task installs ansible, docker and docker compose.
+The second task installs docker and docker compose.
 
 Then the docker service is started and enabled.
 
 To run the playbook use the following command:
 
-`$ ansible-playbook bastion.yml'
+`$ ansible-playbook harbor.yml'
 
 ### Testing the connection 
 
@@ -87,7 +186,7 @@ To test that the local hosts can connect to the soon-to-be managed hosts we can 
 simple ad-hoc command like:
 
 ```shell
-$ ansible all -m ping -u ec2-user
+$ ansible all -m ping -u centos
 ec2-34-245-72-227.eu-west-1.compute.amazonaws.com | SUCCESS => {
     "changed": false, 
     "ping": "pong"
@@ -98,4 +197,3 @@ If the result is success the connection is good.
 
 ### Set up the registry host
 
-* Install docker

@@ -1,6 +1,6 @@
 ---
 - name: Set up the bastion host as an ansible controller host
-  hosts: bastion
+  hosts: all
   become: True
 
   tasks:
@@ -15,13 +15,9 @@
         state: present
       remote_user: centos
       when: ansible_distribution == 'CentOS'
-#    - name: Update packages
-#      yum:
-#        name: '*'
-#        state: latest
-    - name: Install ansible and docker
+    - name: Install docker and docker compose
       yum:
-        name: ansible, docker, docker-compose
+        name: docker, docker-compose
         state: present
     - name: Enable and start docker service
       service:
