@@ -3,8 +3,8 @@
 ### SSH connection to the registry host
 
 The registry host is placed in a private subnet not directly accesible from the outside
-since it doesn't have a public name or IP address, only other hosts in the VPC can access
-it.
+since it doesn't have a public name or IP address, only other hosts in the same VPC can
+access it using ssh.
 
 We are using a bastion host created in the public subnet to indirectly connect to the
 registry host both using ssh and ansible.  This way we can run the ansible playbooks from
@@ -81,12 +81,94 @@ commands or playbooks against the hosts in the private network:
 
 `# ansible-playbook harbor.yml`
 
+### Updating the inventory file with terraform data
+
+The hosts used in this harbor project are created on demand with terraform in AWS, so we
+need to update the inventory file used by ansible every time the new servers replace the
+old ones (terraform destroy -> terraform apply).  To simplify this error prone process we
+leverage ansible and define an independent play for this.
+
+This play will run against the localhost, that will not change when terraform creates new
+EC2 instances, so a new group is created in the inventory called _local_ conatining
+localhost as the only member, and the play will run agains this group.:
+
+```
+[local]
+localhost   ansible_connection=local
+```
+
+The play consists basically on creating the inventory file by filling the variables in a
+template, but first we have to define these variables, for that we use a task that saves
+the output variables from terraform VPC into a file:
+
+```
+- name: Create variables file from terraform output
+  shell: terraform output |tr '=' ':' > ../../ansible/terraform_outputs.var
+  args:
+    chdir: ../terraform/VPC/
+```
+The use of the **tr** command is needed to convert equal signs into coloms and this way
+create a dictionary file understood by ansible.
+
+This task is always run, creating a _changed_ state for the task, since nothing bad comes out of
+repeating it.
+
+The next task loads the variables from the file just created into ansible making them
+available for the next tasks:
+```
+- name: Load the terraform out variables
+  include_vars:
+    file: terraform_outputs.var
+```
+
+The next task fills in the template and creates the new inventory file:
+
+```
+- name: Apply inventory template
+  template:
+    src: templates/inventario.j2
+    dest: inventario
+```
+
+The template file is a simple variable substituion template without any extra logic:
+
+```
+[bastion]
+{{ bastion_name }}
+
+[bastion:vars]
+ansible_user= centos
+
+[registry]
+{{ registry_IP }}
+
+[registry:vars]
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@{{ bastion_name }}"'
+ansible_user= centos
+
+[aws:children]
+bastion
+registry
+
+[local]
+localhost   ansible_connection=local
+```
+
+The next task is something like a bonus task, it updates the ssh.cfg file from a template.
+This file can be used with ssh to connect to the registry host with a command like:
+
+`ssh -F ssh.cfg centos@172.20.2.105`
+
+The last task of the play reloads the newly created inventory file into ansible.  For some
+reason the messages next to the _name_ option of this task doesn't show up during play
+execution, but the new invetory seems to be loaded into ansible.
+
 ### Installing docker and docker compose with ansible 
 
 All servers (bastion and registry) need docker and docker compose installed.  We use
-ansible from a local workstation to install these packages and active the docker service.
+ansible from a local control host to install these packages and active the docker service.
 
-The inventory file will contain a single host group called _bastion_ with the DNS name of
+The inventory file contains a one host group called _bastion_ with the DNS name of
 the bastion host, this name changes on every execution of the terraform plan so a dynamic
 mechanism to update the inventory would be a good idea.  
 

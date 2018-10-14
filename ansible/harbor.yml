@@ -1,6 +1,28 @@
 ---
-- name: Set up the bastion host as an ansible controller host
-  hosts: all
+- name: Update local inventory file
+  hosts: local
+
+  tasks:
+    - name: Create variables file from terraform output
+      shell: terraform output |tr '=' ':' > ../../ansible/terraform_outputs.var
+      args:
+        chdir: ../terraform/VPC/
+    - name: Load the terraform out variables
+      include_vars:
+        file: terraform_outputs.var
+    - name: Apply inventory template
+      template:
+        src: templates/inventario.j2
+        dest: inventario
+    - name: Apply ssh config template
+      template:
+        src: templates//ssh_cfg.j2
+        dest: ../ssh.cfg
+    - name: Reload inventory file
+      meta: refresh_inventory
+
+- name: Setup docker and docker compose
+  hosts: aws
   become: True
 
   tasks:

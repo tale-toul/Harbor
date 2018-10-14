@@ -1,0 +1,19 @@
+[bastion]
+{{ bastion_name }}
+
+[bastion:vars]
+ansible_user= centos
+
+[registry]
+{{ registry_IP }}
+
+[registry:vars]
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@{{ bastion_name }}"'
+ansible_user= centos
+
+[aws:children]
+bastion
+registry
+
+[local]
+localhost   ansible_connection=local
