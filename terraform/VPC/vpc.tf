@@ -87,7 +87,7 @@ resource "aws_security_group" "sg-ssh-in" {
 		from_port = 22
 		to_port = 22
 		protocol = "tcp"
-		cidr_blocks = ["185.229.0.0/16"]
+		cidr_blocks = ["185.192.0.0/10"]
     }
 
     tags {
@@ -113,9 +113,10 @@ resource "aws_security_group" "sg-ssh-out" {
         Project = "harbor"
     }
 }
+
 resource "aws_security_group" "sg-ssh-in-local" {
     name = "ssh-in-local"
-    description = "Allow ssh connections from VPC"
+    description = "Allow ssh connections from same VPC"
     vpc_id = "${aws_vpc.vpc.id}"
 
 	ingress {
@@ -156,6 +157,31 @@ resource "aws_security_group" "sg-web-out" {
     }
 }
 
+resource "aws_security_group" "sg-web-in-local" {
+    name = "web-in"
+    description = "Allow http and https inbound connections from same VPC"
+    vpc_id = "${aws_vpc.vpc.id}"
+
+    ingress {
+        from_port = 80
+        to_port = 80
+        protocol = "tcp"
+		cidr_blocks = ["172.20.0.0/16"]
+    }
+
+    ingress {
+        from_port = 443
+        to_port = 443
+        protocol = "tcp"
+		cidr_blocks = ["172.20.0.0/16"]
+    }
+
+    tags {
+        Name = "sg-web-in-local"
+        Project = "harbor"
+    }
+}
+
 #EC2 instances
 resource "aws_instance" "bastion" {
   #Centos 7.5
@@ -178,7 +204,9 @@ resource "aws_instance" "registry" {
   ami = "ami-3548444c"
   instance_type = "t2.micro"
   subnet_id = "${aws_subnet.subnet2.id}"
-  vpc_security_group_ids = ["${aws_security_group.sg-ssh-in-local.id}","${aws_security_group.sg-web-out.id}"]
+  vpc_security_group_ids = ["${aws_security_group.sg-ssh-in-local.id}",
+                            "${aws_security_group.sg-web-out.id}",
+                            "${aws_security_group.sg-web-in-local.id}"]
   key_name= "tale_toul-keypair-ireland"
 
     tags {

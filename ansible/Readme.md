@@ -2,20 +2,19 @@
 
 ### SSH connection to the registry host
 
-The registry host is placed in a private subnet not directly accesible from the outside
+The registry host is placed in a private subnet not directly accesible from the Internet
 since it doesn't have a public name or IP address, only other hosts in the same VPC can
-access it using ssh.
+access it, given that the security groups and NACLs allow it.
 
 We are using a bastion host created in the public subnet to indirectly connect to the
 registry host both using ssh and ansible.  This way we can run the ansible playbooks from
-the local workstation and there's no need to install ansible in the bastion host.
+the local workstation without the need to install ansible in the bastion host.
 
 To connect to the registry host with ssh via the bastion host we have to add some
 configuration to the ssh client config file in the local machine.
 
 The registry host is in the network 172.20.2.0/24 and the bastion host has a public IP and
-DNS name (ec2-34-249-106-182.eu-west-1.compute.amazonaws.com).  The required configuration
-is:
+DNS name.  The required configuration is:
 
 ```
 Host 172.20.*.*
@@ -46,20 +45,20 @@ Host ec2-34-249-106-182.eu-west-1.compute.amazonaws.com
 
 This block specifies the ssh key to use when authenticating with the bastion host.
 
-Finally we have to start the ssh-agent and add the key
+Finally we have to start the ssh-agent (maybe only the first time) and add the key
 
 ```
 # ssh-agent bash
 # ssh-add /home/tale/Descargas/tale_toul-keypair-ireland.pem
 ```
 
-Now we can connect to the registry host with a simple ssh command like, in this example we
-have added the configuration to the ssh.cfg file:
+Now we can connect to the registry host with a simple ssh command like the following, in
+this example we have added the configuration to the ssh.cfg file:
 
 `# ssh -F ssh.cfg centos@172.20.2.79`
 
 One important thing to notice is that the 172.20.2.0/24 network is not accesible from the
-localhost where the command is issued.
+localhost where the command is issued but still we get an ssh session in that host.
 
 To apply this setup to ansible we define the variable ansible_ssh_common_args for the
 group of hosts in the private network, for example in the inventory file:
@@ -74,12 +73,51 @@ ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@ec2-34-249-106-
 ansible_user=centos
 ```
 
-We still need the to start ssh-agent and add the key as before.  Now we can run ansible
-commands or playbooks against the hosts in the private network:
+We still need the to start ssh-agent and add the key as above.
 
-`# ansible registry -m ping`
+There is one last thing to take care of before running ansible against the registry
+server.  When we launch a playbook for the first time after the hosts have been newly
+created we have to accept the ssh key of the remote server.  We have configure ansible
+with the option **host_key_checking=False** not to be bothered with that question, but
+when we make an indirect connection to the registry host we are asked to accept the key
+two times, one for the bastion host, another for the registry host, but ansible doesn't
+seem prepared for two question and the play hangs on the second question until a
+connection timeout is reached.  
 
-`# ansible-playbook harbor.yml`
+To avoid this problem we have to make sure a connection to the bastion host is stablished
+before going to the registry host, for that reason the ansile playbook includes a dummy
+connection before the play that is run against both the bastion and registry hosts.  This
+first connection overcomes the hurdle of that double question.
+
+```
+- name: Dummy connection to bastion host
+  hosts: bastion
+
+  tasks:
+    - name: Just a simple message
+      debug:
+        msg: Hello from bastion
+
+```
+
+After that we can run ansible commands or playbooks against the hosts in the private
+network:
+
+#### Testing the connection 
+
+To test that the local hosts can connect to the soon-to-be managed hosts we can use a
+simple ad-hoc command like:
+
+```shell
+$ ansible all -m ping -u centos
+ec2-34-245-72-227.eu-west-1.compute.amazonaws.com | SUCCESS => {
+    "changed": false, 
+    "ping": "pong"
+}
+```
+
+If the result is success the connection is good.
+
 
 ### Updating the inventory file with terraform data
 
@@ -216,7 +254,7 @@ The meaning of this options is:
 * private_key_file=/home/tale/Descargas/tale_toul-keypair-ireland.pem.- This is the
   private key used to connect to the managed hosts.
 
-The contents of the main playbook are:
+The contents of this play are:
 
 ```
 ---
@@ -262,20 +300,29 @@ To run the playbook use the following command:
 
 `$ ansible-playbook harbor.yml'
 
-### Testing the connection 
-
-To test that the local hosts can connect to the soon-to-be managed hosts we can use a
-simple ad-hoc command like:
-
-```shell
-$ ansible all -m ping -u centos
-ec2-34-245-72-227.eu-west-1.compute.amazonaws.com | SUCCESS => {
-    "changed": false, 
-    "ping": "pong"
-}
-```
-
-If the result is success the connection is good.
-
 ### Set up the registry host
 
+The last play of the playbook contains the tasks used to install harbor in the registry
+server, they are only run aginst the registry server:
+
+```
+- name: Download harbor online installer
+  get_url:
+    url: https://storage.googleapis.com/harbor-releases/release-1.6.0/harbor-online-installer-v1.6.0.tgz
+    dest: /tmp/
+- name: Unpack harbor installer
+  unarchive:
+    src: /tmp/harbor-online-installer-v1.6.0.tgz
+    dest: /opt
+    remote_src: True
+- name: Add harbor config file from template
+  template:
+    src: templates/harbor.j2
+    dest:  /opt/harbor/harbor.cfg
+```
+
+The first task downloads the tar file containing the online installer
+
+The second task extracts the contents of the installer in /opt/harbor
+
+The third task copies the configuration file from a template.

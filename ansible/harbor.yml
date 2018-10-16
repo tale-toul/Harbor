@@ -21,6 +21,14 @@
     - name: Reload inventory file
       meta: refresh_inventory
 
+- name: Dummy connection to bastion host
+  hosts: bastion
+
+  tasks:
+    - name: Just a simple message
+      debug:
+        msg: Hello from bastion
+
 - name: Setup docker and docker compose
   hosts: aws
   become: True
@@ -46,4 +54,23 @@
         name: docker
         state: started
         enabled: True
+
+- name: Set up harbor
+  hosts: registry
+  become: True
+
+  tasks:
+    - name: Download harbor online installer
+      get_url:
+        url: https://storage.googleapis.com/harbor-releases/release-1.6.0/harbor-online-installer-v1.6.0.tgz
+        dest: /tmp/
+    - name: Unpack harbor installer
+      unarchive:
+        src: /tmp/harbor-online-installer-v1.6.0.tgz
+        dest: /opt
+        remote_src: True
+    - name: Add harbor config file from template
+      template:
+        src: templates/harbor.j2
+        dest:  /opt/harbor/harbor.cfg
 ...

@@ -49,7 +49,7 @@ This variables are only defined for the current shell.
 
 ### Project structure
 
-The terraform project will consist of several connected elements, each one of the
+The terraform project will consist of several connected elements, each one of them
 will reside in its own separate directory, with this we can start, stop and modify
 each element without affecting the others.
 
@@ -139,18 +139,18 @@ resource "aws_vpc" "vpc" {
 }
 ```
 
-Obiously we use the aws provider, and define the Ireland region as the one to create
-all resources.  The version option is suggested by the **terraform init** command as
-shown in the next section.
+Obviously we use the aws provider, and define the Ireland region as the one to create all
+resources.  The version option is suggested by the **terraform init** command as shown in
+the next section.
 
-The VPC definition uses the IPV4 network range 172.20.0.0/16 and enables the
-assignment of dns hostnames to the EC2 instances created inside.  
+The VPC definition uses the IPV4 network range 172.20.0.0/16 and enables the assignment of
+dns hostnames to the EC2 instances created inside.  
 
 Then a Name and Project tag is defined.
 
 #### Terraform initialization
 
-There are several ocations when it is necessary to initialize terraform:
+There are several occations when it is necessary to initialize terraform:
 
 * Before first use of the terraform command you have to initialize the plugins in the
   by running the _init_ subcommand in the directory where you terraform files will
@@ -257,7 +257,7 @@ the route table is created in the VPC.
 
 A few security groups are created:
 
-* sg-ssh-in.- To allow inbound ssh connections from the network 185.229.0.0/16
+* sg-ssh-in.- Allows inbound ssh connections from the network 185.192.0.0/10
   corresponding with the addresss space of MedinaNet.  
 
 * sg-ssh-out.- To allow outgoing ssh connections to any IP within the VPC network
@@ -268,6 +268,8 @@ A few security groups are created:
 
 * sg-web-out.- To allow http and https outbound connections from the EC2 instances to any
   IP so they can install and update packages.
+
+* sg-web-in-local.- Allows http and https inbound connections from any IP in the VPC
 
 #### NAT gateway
 
@@ -315,8 +317,10 @@ The the registry server that will contain harbor is created in the private subne
 similar to the bastión host, at least for the moment, later it will have to be a more
 powerfull machine.  The security group for ssh connections (sg-ssh-in-local) only allows
 connections from other instances in the VPC network 172.20.0.0/16, the security group for
-the outgoing connections is the same that the bastion server uses, but it could be tighten
-more because the registry will only be able to connect to IPs in the VPC.
+the outgoing connections is the same that the bastion server uses, but it could be tigthen
+more because the registry will only be able to connect to IPs in the VPC, the security
+group for inbound web connections (sg-web-in-local) allows connections to ports 80 and 443
+only if they come from other hosts in the same VPC.
 
 ### How to connect to the instances
 
