@@ -49,18 +49,9 @@ $ tar xvf harbor1.6.0-online.tgz
 
 * Run the installer:
 
-    `#./install.sh
+    `#./install.sh`
 
-* Access the website.- To access the harbor website from the local workstation we will
-  create a ssh tunnel, this is needed because the registry server is not directly
-  accesible since it is housed in a private subnet.  The command to create the ssh tunnel
-  is like:
-
-`# ssh -i ~/Descargas/tale_toul-keypair-ireland.pem -fN -L 8080:172.20.2.180:80 centos@ec2-34-244-134-185.eu-west-1.compute.amazonaws.com`
-
-  Now we can connect to the web interface with the URL http://localhost:8080
-
-### Building and starting harbor
+### Building and starting harbor with terraform and ansible
 
 To build the harbor project from scratch do the following:
 
@@ -89,3 +80,28 @@ To build the harbor project from scratch do the following:
   install harbor in the registry host.
 
 `# ansible-playbook harbor.yml`
+
+
+### Connecting to the registry
+
+* From the bastion host.
+
+    * Add the registry as insecure registry.- Edit the file **/etc/sysconfig/docker** and
+      add to the OPTIONS variable a section like the following, then restart the docker
+      service:
+
+        `--insecure-registry 172.20.2.180:80`
+
+    * Log in to the registry.- The registry server listens of port 80, at least initially,
+      so the command to log in is:
+
+        `sudo docker login http://172.20.2.180:80`
+
+    * Access the website.- To access the harbor website from the local workstation we will
+      create a ssh tunnel, this is needed because the registry server is not directly
+      accesible since it is housed in a private subnet.  The command to create the ssh
+      tunnel is like:
+
+`# ssh -i ~/Descargas/tale_toul-keypair-ireland.pem -fN -L 8080:172.20.2.180:80 centos@ec2-34-244-134-185.eu-west-1.compute.amazonaws.com`
+
+      Now we can connect to the web interface with the URL http://localhost:8080

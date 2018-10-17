@@ -143,7 +143,7 @@ the output variables from terraform VPC into a file:
 - name: Create variables file from terraform output
   shell: terraform output |tr '=' ':' > ../../ansible/terraform_outputs.var
   args:
-    chdir: ../terraform/VPC/
+    chdir: ../terraform/EC2/
 ```
 The use of the **tr** command is needed to convert equal signs into coloms and this way
 create a dictionary file understood by ansible.
@@ -285,7 +285,7 @@ The contents of this play are:
         enabled: True
 ...
 ```
-The first play is executed against all hosts defined in the inventory.
+This play is executed against all hosts defined in the inventory.
 
 All tasks have to be run as root (become=true).
 
@@ -319,10 +319,21 @@ server, they are only run aginst the registry server:
   template:
     src: templates/harbor.j2
     dest:  /opt/harbor/harbor.cfg
+- name: Run installation script
+  command: ./install.sh
+  args:
+    chdir: /opt/harbor
+        creates: /data/database/postmaster.pid
 ```
 
-The first task downloads the tar file containing the online installer
+The first task downloads the tar file containing the online installer.
 
-The second task extracts the contents of the installer in /opt/harbor
+The second task extracts the contents of the installer in /opt/harbor.
 
 The third task copies the configuration file from a template.
+
+The fourth task runs the installer, but only when the file
+**/data/database/postmaster.pid** doesn't exist.
+
+After this play runs succesfully the inventory is up and running, ready to accept
+requests.

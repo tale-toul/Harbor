@@ -50,20 +50,22 @@ This variables are only defined for the current shell.
 ### Project structure
 
 The terraform project will consist of several connected elements, each one of them
-will reside in its own separate directory, with this we can start, stop and modify
+residing in its own separate directory.  With this setup we can start, stop and modify
 each element without affecting the others.
 
-The directories that will be created initially are: 
+The directories that will be created are: 
 
 * VPC.- This will hold the code to create the VPC and other network related resources
 
 * NAT_gateway.- This direcotory will hold the NAT gateway.
 
+* EC2.- This will hold the code to create the EC2 instances.
+
 #### Remote state and backends
 
-For the different elements to be able to access data from other elements, necessary
-for example to add the NAT gateway to the subnet defined in the VPC, we have to
-define a remote state that will be kept in a backend.
+For the different componentes to have the ability to access data from other components in
+the project, for example, to add the NAT gateway to the subnet defined in the VPC, we have
+to define a remote state that will be kept in a backend.
 
 The backend used will be *local* which is just the normal local file
 terraform.tfstate but explicitily declared so that later another element can access
@@ -81,11 +83,11 @@ terraform {
 
 ```
 
-The path is relative to where the vpc.tf file is found.
+The path is relative to the directory where the vpc.tf file is found.
 
 The remote state data source is defined in the code of the element that wants to
-access the data, for example from the NAT gateway's nat.tf file we add the following
-definition:
+access the data, we use the same declaration from both the NAT gateway's nat.tf file and
+the EC2's ec2.tf file:
 
 ```
 data "terraform_remote_state" "vpc" {
@@ -103,8 +105,6 @@ backend at the relative path ../terraform.tfstate.
 
 From now on we can export output variables from the VPC element and use them in the
 NAT gateway element. For example:
-
-Output variable found in VPC:
 
 ```
 output "subnet1_id" {
@@ -303,8 +303,11 @@ elastic IP and the NAT gateway itself.
 
 ### EC2 instances
 
-Once we have the networking part of the configuration all sorted out, we can start
-deploying the servers.
+These are defined in its own directory EC2/ec2.tf so we can start and stop them indepently
+from the network part of the project.
+
+Part of the information needed to define the instances, like subnet and security groups
+ids are obtained from the VPC datasource.
 
 First we add the bastion host to the public subnet, this will use a Redhat 7.5 image
 installed on a t2.micro instance; the host is placed in the public subnet and applied
@@ -321,6 +324,14 @@ the outgoing connections is the same that the bastion server uses, but it could 
 more because the registry will only be able to connect to IPs in the VPC, the security
 group for inbound web connections (sg-web-in-local) allows connections to ports 80 and 443
 only if they come from other hosts in the same VPC.
+
+As with the other components we have to initialize terraform in this directory:
+
+`# terraform init`
+
+Then we can start the instances:
+
+`# terraform apply`
 
 ### How to connect to the instances
 

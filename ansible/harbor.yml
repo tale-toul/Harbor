@@ -6,7 +6,7 @@
     - name: Create variables file from terraform output
       shell: terraform output |tr '=' ':' > ../../ansible/terraform_outputs.var
       args:
-        chdir: ../terraform/VPC/
+        chdir: ../terraform/EC2/
     - name: Load the terraform out variables
       include_vars:
         file: terraform_outputs.var
@@ -73,4 +73,9 @@
       template:
         src: templates/harbor.j2
         dest:  /opt/harbor/harbor.cfg
+    - name: Run installation script
+      command: ./install.sh
+      args:
+        chdir: /opt/harbor
+        creates: /data/database/postmaster.pid
 ...

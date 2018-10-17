@@ -181,36 +181,3 @@ resource "aws_security_group" "sg-web-in-local" {
         Project = "harbor"
     }
 }
-
-#EC2 instances
-resource "aws_instance" "bastion" {
-  #Centos 7.5
-  ami = "ami-3548444c"
-  instance_type = "t2.micro"
-  subnet_id = "${aws_subnet.subnet1.id}"
-  vpc_security_group_ids = ["${aws_security_group.sg-ssh-in.id}",
-                            "${aws_security_group.sg-web-out.id}",
-                            "${aws_security_group.sg-ssh-out.id}"]
-  key_name= "tale_toul-keypair-ireland"
-
-    tags {
-        Name = "bastion"
-        Project = "harbor"
-    }
-}
-
-resource "aws_instance" "registry" {
-  #Centos 7.5
-  ami = "ami-3548444c"
-  instance_type = "t2.micro"
-  subnet_id = "${aws_subnet.subnet2.id}"
-  vpc_security_group_ids = ["${aws_security_group.sg-ssh-in-local.id}",
-                            "${aws_security_group.sg-web-out.id}",
-                            "${aws_security_group.sg-web-in-local.id}"]
-  key_name= "tale_toul-keypair-ireland"
-
-    tags {
-        Name = "registry"
-        Project = "harbor"
-    }
-}
