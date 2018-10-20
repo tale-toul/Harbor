@@ -21,6 +21,10 @@ resource "aws_instance" "bastion" {
                             "${data.terraform_remote_state.vpc.sg-web-out_id}",
                             "${data.terraform_remote_state.vpc.sg-ssh-out_id}"]
   key_name= "tale_toul-keypair-ireland"
+  root_block_device {
+    volume_size = 8
+    delete_on_termination = true
+  }
 
     tags {
         Name = "bastion"
@@ -37,6 +41,10 @@ resource "aws_instance" "registry" {
                             "${data.terraform_remote_state.vpc.sg-web-out_id}",
                             "${data.terraform_remote_state.vpc.sg-web-in-local_id}"]
   key_name= "tale_toul-keypair-ireland"
+  root_block_device {
+    volume_size = 8
+    delete_on_termination = true
+  }
 
     tags {
         Name = "registry"

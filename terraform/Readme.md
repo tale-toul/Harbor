@@ -309,6 +309,21 @@ from the network part of the project.
 Part of the information needed to define the instances, like subnet and security groups
 ids are obtained from the VPC datasource.
 
+When defining the instances it is important to consider the lifecycle of the disks
+attached to the them, by default each instance will get an 8GB root device that **will NOT
+be deleted** when the instance is terminated.  This means that if we apply and destroy
+the terraform plan several times we will end up with as many ebs disks in our aws account,
+that will increase the bill at the end of the month.  To avoid this problem I will
+specifically define the option for the root device **delete_on_termination**, this will
+have the effect of eliminating the ebs disk when the EC2 instance is terminanted:
+
+```
+  root_block_device {
+    volume_size = 8
+    delete_on_termination = true
+  }
+```
+
 First we add the bastion host to the public subnet, this will use a Redhat 7.5 image
 installed on a t2.micro instance; the host is placed in the public subnet and applied
 the security groups sg-ssh-in; sg-ssh-out and sg-web-out that allow ssh connections from
