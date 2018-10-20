@@ -64,7 +64,7 @@ The directories that will be created are:
 #### Remote state and backends
 
 For the different componentes to have the ability to access data from other components in
-the project, for example, to add the NAT gateway to the subnet defined in the VPC, we have
+the project, for example to add the NAT gateway to the subnet defined in the VPC, we have
 to define a remote state that will be kept in a backend.
 
 The backend used will be *local* which is just the normal local file
@@ -271,7 +271,7 @@ A few security groups are created:
 
 * sg-web-in-local.- Allows http and https inbound connections from any IP in the VPC
 
-#### NAT gateway
+### NAT gateway
 
 [AWS documentation](https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html)
 

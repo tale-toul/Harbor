@@ -68,6 +68,10 @@ To build the harbor project from scratch do the following:
 
 `# terraform apply`
 
+* Go to the terraform/EC2 and run:
+
+`# terraform apply`
+
 * Add the ssh key with permission to connect to the EC2 instances to the ssh agent:
 
 `# ssh-add Descargas/tale_toul-keypair-ireland.pem`
@@ -90,12 +94,14 @@ To build the harbor project from scratch do the following:
       add to the OPTIONS variable a section like the following, then restart the docker
       service:
 
-        `--insecure-registry 172.20.2.180:80`
+        `--insecure-registry 172.20.2.180`
+
+        `$ sudo systemctl restart docker`
 
     * Log in to the registry.- The registry server listens of port 80, at least initially,
       so the command to log in is:
 
-        `sudo docker login http://172.20.2.180:80`
+        `sudo docker login http://172.20.2.180`
 
     * Access the website.- To access the harbor website from the local workstation we will
       create a ssh tunnel, this is needed because the registry server is not directly
