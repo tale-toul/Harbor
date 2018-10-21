@@ -2,8 +2,8 @@
 
 https://www.terraform.io
 
-All the resources created for this project will have the tag Project="harbor" to make
-them easily identifiable 
+All the resources created for this project that support tags, will have the tag
+Project="harbor" to make them easily identifiable.
 
 ### Terraform installation
 
@@ -60,6 +60,8 @@ The directories that will be created are:
 * NAT_gateway.- This direcotory will hold the NAT gateway.
 
 * EC2.- This will hold the code to create the EC2 instances.
+
+* S3.- Holds the code to create the storage infrastructure, including buckets, users and policies.
 
 #### Remote state and backends
 
@@ -189,10 +191,11 @@ commands will detect it and remind you to do so if necessary.
 * After defining a backend to be used to keep the state information of terraform in
   any subdirectory
 
+* After defining a template file datasource.
+
 #### Resource creation
 
-To create the VPC issue the following command:
-
+To create the resources defined in the terraform files issue the following command:
 
 ```shell
  # terraform apply
@@ -203,7 +206,7 @@ This command will show the plan of changes to apply and ask for confirmation.  E
 
 #### Resource destruction
 
-When the VPC is no longer needed you can remove it using the command:
+When the resources are no longer needed, you can remove them with the following command:
 
 ```shell
  # terraform destroy
@@ -348,7 +351,7 @@ Then we can start the instances:
 
 `# terraform apply`
 
-### How to connect to the instances
+#### Connecting to the instances
 
 After deploying all the infrastructure defined so far we can connect to the instances usin
 ssh.  
@@ -388,3 +391,31 @@ Now we can connect to the bastion host as before and then to the registry host u
 private IP or name:
 
 `[ec2-user@ip-172-20-1-33 ~]$ ssh ec2-user@172.20.2.142`
+
+### S3 storage
+
+The terraform code to manage the S3 storage is found in the directory **terraform/S3**.
+
+The code creates:
+
+* An IAM user who will be used by harbor to access the bucket where the images will be
+  stored, this user will have just the minimum permissions requiere by harbor as stated in
+  the
+[documentation](https://github.com/docker/docker.github.io/blob/master/registry/storage-drivers/s3.md#s3-permission-scopes)
+
+* An access key for the IAM user, this key is **not encrypted** so it will be found in
+  clear text in the state file of terraform.  In a future version the key may be
+  encrypted.
+
+* A bucket policy from a template, the template requieres two variables ${user} with the
+  name of the user that will access the bucket; and ${name} with the globally unique name
+  of the bucket.  The ${user} is taken from the user resource previously created in the
+  same file.  The ${name} is defined as a variable at the begining of the file.
+
+* A bucket to store the images managed by the registry, the name of the bucket is defined
+  in the variable *bucket_name* and the policy created from the template. 
+
+A file with output definitions is also created in this directory to export the information
+needed by ansible to create the storage configuration for harbor.  The variables exported
+are: iam_user_access_key; iam_user_secret_key; bucket_region and bucket_name.
+

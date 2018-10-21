@@ -212,6 +212,23 @@ that will be used as storage backend for harbor:
 
 This policy is defined to allow the actions recomended by the doker registry [documentation](https://github.com/docker/docker.github.io/blob/master/registry/storage-drivers/s3.md#s3-permission-scopes)
 
-This configuration is enough to use the S3 bucket as backend storage for harbor however
-it is static, in the next sections we will see how to automate the creation of the user,
-bucket and bucket policy using terraform, and apply the configuration with ansible.
+This configuration is enough to use the S3 bucket as backend storage for harbor, however
+this configuration is static and any changes in the bucket or the user will requiere a
+manual reconfiguration the config.yml and the policy files.  In the next section we will
+see how to automate the creation of the user, bucket and bucket policy using terraform,
+and apply the configuration with ansible.
+
+#### S3 bucket automation
+
+Following the concept of Inmutable infrastructure that has been a core concept in this
+project, we are going to setup terraform and ansible to automatically create a bucket; an
+AWS user to manage the bucket; a bucket policy to staple together the bucket and user with
+just the minimum permissions requiere by harbor; and the configuration files needed by
+harbor to use the bucket as a storage backend.
+
+For the details on the creation of the resources with terraform see the section **S3
+storage** in the terraform/Readme.md file.
+
+For the details on the creation of the configuration file for harbor by ansible see the
+section **Set up the registry host** in the ansible/Readme.md file.
+

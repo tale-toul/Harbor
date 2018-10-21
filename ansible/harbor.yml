@@ -3,11 +3,15 @@
   hosts: local
 
   tasks:
-    - name: Create variables file from terraform output
+    - name: Create variables file from terraform output EC2 outputs
       shell: terraform output |tr '=' ':' > ../../ansible/terraform_outputs.var
       args:
         chdir: ../terraform/EC2/
-    - name: Load the terraform out variables
+    - name: Add variables to file from terraform S3 outputs
+      shell: terraform output |tr '=' ':' >> ../../ansible/terraform_outputs.var
+      args:
+        chdir: ../terraform/S3/
+    - name: Load the terraform output variables
       include_vars:
         file: terraform_outputs.var
     - name: Apply inventory template
@@ -16,7 +20,7 @@
         dest: inventario
     - name: Apply ssh config template
       template:
-        src: templates//ssh_cfg.j2
+        src: templates/ssh_cfg.j2
         dest: ../ssh.cfg
     - name: Reload inventory file
       meta: refresh_inventory
@@ -58,6 +62,8 @@
 - name: Set up harbor
   hosts: registry
   become: True
+  vars_files:
+    - terraform_outputs.var
 
   tasks:
     - name: Download harbor online installer
@@ -73,6 +79,10 @@
       template:
         src: templates/harbor.j2
         dest:  /opt/harbor/harbor.cfg
+    - name: Apply Storage backend template
+      template:
+       src: templates/config.j2
+       dest: /opt/harbor/common/templates/registry/config.yml
     - name: Run installation script
       command: ./install.sh
       args:

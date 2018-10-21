@@ -1,4 +1,27 @@
-## Ansible playbooks to setup harbor
+## Ansible playbooks to install and setup harbor
+
+Ansible will be used to automate the installation and configuration of harbor.
+
+The ansible.cfg file will contain the following options:
+
+```
+[defaults]
+inventory=inventario
+host_key_checking=False
+private_key_file=/home/tale/Descargas/tale_toul-keypair-ireland.pem
+```
+
+The meaning of these options are:
+
+* inventory=inventario.- the name of the inventory file
+* host_key_checking=False.- The ssh key signature of the files not in known_hosts will be
+  included without prompting the user
+* private_key_file=/home/tale/Descargas/tale_toul-keypair-ireland.pem.- This is the
+  private key used to connect to the managed hosts.
+
+To run the playbook use the following command:
+
+`$ ansible-playbook harbor.yml'
 
 ### SSH connection to the registry host
 
@@ -118,13 +141,12 @@ ec2-34-245-72-227.eu-west-1.compute.amazonaws.com | SUCCESS => {
 
 If the result is success the connection is good.
 
-
 ### Updating the inventory file with terraform data
 
-The hosts used in this harbor project are created on demand with terraform in AWS, so we
-need to update the inventory file used by ansible every time the new servers replace the
-old ones (terraform destroy -> terraform apply).  To simplify this error prone process we
-leverage ansible and define an independent play for this.
+The hosts used in this project are created on demand in AWS using terraform code, so we
+need to update the inventory file used by ansible every time new servers replace the old
+ones (terraform destroy -> terraform apply).  To simplify this error prone process we
+leverage ansible and defining a new play for this.
 
 This play will run against the localhost, that will not change when terraform creates new
 EC2 instances, so a new group is created in the inventory called _local_ conatining
@@ -135,9 +157,9 @@ localhost as the only member, and the play will run agains this group.:
 localhost   ansible_connection=local
 ```
 
-The play consists basically on creating the inventory file by filling the variables in a
-template, but first we have to define these variables, for that we use a task that saves
-the output variables from terraform VPC into a file:
+The play basically creates the inventory file by filling the variables in a template, but
+first we have to define these variables, for that we use a task that saves the output
+variables from terraform/VPC into a file:
 
 ```
 - name: Create variables file from terraform output
@@ -145,11 +167,15 @@ the output variables from terraform VPC into a file:
   args:
     chdir: ../terraform/EC2/
 ```
-The use of the **tr** command is needed to convert equal signs into coloms and this way
-create a dictionary file understood by ansible.
+The use of the **tr** command is needed to convert equal signs into coloms to create a
+dictionary file understandable by ansible.
 
 This task is always run, creating a _changed_ state for the task, since nothing bad comes out of
 repeating it.
+
+Next task saves the output variables from terraform/S3 into the same file
+terraform_outputs.var.  This task doesn't have anything to do with the inventory update,
+it is used by the Set up harbor play later.
 
 The next task loads the variables from the file just created into ansible making them
 available for the next tasks:
@@ -203,16 +229,16 @@ execution, but the new invetory seems to be loaded into ansible.
 
 ### Installing docker and docker compose with ansible 
 
-All servers (bastion and registry) need docker and docker compose installed.  We use
-ansible from a local control host to install these packages and active the docker service.
+All servers (bastion and registry) need docker and docker compose installed.  The play
+"Setup docker and docker compose" is used to install these packages and enable the docker
+service.
 
-The inventory file contains a one host group called _bastion_ with the DNS name of
-the bastion host, this name changes on every execution of the terraform plan so a dynamic
-mechanism to update the inventory would be a good idea.  
+The play is executed against the group aws wich is made of the groups bastion and
+registry.
 
-The vars of the bastion group consist of the remote remote user to connect via ssh to this
-host.  The *ansible_user* must match the default user of the ami, in RedHat it is
-__ec2-user__, in CentOS it is __centos__
+The vars of the bastion group consist of the remote user to connect via ssh to this host.
+The *ansible_user* must match the default user of the ami, in RedHat it is __ec2-user__,
+in CentOS it is __centos__.  
 
 The inventory file also contains the group _registry_ with the private IP of the registry
 server, this address is not directly accesible from the outside world, see [SSH connection
@@ -237,29 +263,11 @@ ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@ec2-34-245-13-2
 ansible_user=centos
 ```
 
-The ansible.cfg file will contain the following options:
-
-```
-[defaults]
-inventory=inventario
-host_key_checking=False
-private_key_file=/home/tale/Descargas/tale_toul-keypair-ireland.pem
-```
-
-The meaning of this options is:
-
-* inventory=inventario.- the name of the inventory file
-* host_key_checking=False.- The ssh key signature of the files not in known_hosts will be
-  included without prompting the user
-* private_key_file=/home/tale/Descargas/tale_toul-keypair-ireland.pem.- This is the
-  private key used to connect to the managed hosts.
-
 The contents of this play are:
 
 ```
----
-- name: Set up the bastion host as an ansible controller host
-  hosts: all
+- name: Setup docker and docker compose
+  hosts: aws
   become: True
 
   tasks:
@@ -283,22 +291,16 @@ The contents of this play are:
         name: docker
         state: started
         enabled: True
-...
 ```
-This play is executed against all hosts defined in the inventory.
 
 All tasks have to be run as root (become=true).
 
-The first task adds the EPEL repository, needed to later install docker compose. There is
+The first tasks add the EPEL repository, needed to later install docker compose. There is
 one task for RedHat servers and another for CentOS servers.
 
-The second task installs docker and docker compose.
+The next task installs docker and docker compose.
 
-Then the docker service is started and enabled.
-
-To run the playbook use the following command:
-
-`$ ansible-playbook harbor.yml'
+The next taks startes and enables the docker service.
 
 ### Set up the registry host
 
@@ -319,6 +321,10 @@ server, they are only run aginst the registry server:
   template:
     src: templates/harbor.j2
     dest:  /opt/harbor/harbor.cfg
+- name: Apply Storage backend template
+  template: 
+   src: templates/config.j2
+   dest: /opt/harbor/common/templates/registry/config.yml
 - name: Run installation script
   command: ./install.sh
   args:
@@ -330,10 +336,20 @@ The first task downloads the tar file containing the online installer.
 
 The second task extracts the contents of the installer in /opt/harbor.
 
-The third task copies the configuration file from a template.
+The third task copies the main configuration file from a template.
 
-The fourth task runs the installer, but only when the file
+The fourth task copies the storage configuration file from a template.  The variables used
+by this template were populated in the first play (Update local inventory file) and are
+imported into this play by the following directive at the begening of the play.  The
+variables used are: iam_user_access_key; iam_user_secret_key; bucket_region; bucket_name.
+
+```
+  vars_files:
+    - terraform_outputs.var
+```
+
+The fifth task runs the installer, but only when the file
 **/data/database/postmaster.pid** doesn't exist.
 
-After this play runs succesfully the inventory is up and running, ready to accept
-requests.
+After the successful complation of this play, the inventory is up and running, ready to
+accept requests.
