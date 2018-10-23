@@ -68,7 +68,11 @@ To build the harbor project from scratch do the following:
 
         `# terraform apply`
 
-* Go to the **terraform/EC2** and run:
+* Go to **terraform/EC2** and run:
+
+        `# terraform apply`
+
+* Go to **terraform/S3** and run:
 
         `# terraform apply`
 
@@ -84,6 +88,11 @@ To build the harbor project from scratch do the following:
   install harbor in the registry host.
 
         `# ansible-playbook harbor.yml`
+
+* If you don't need the NAT_gateway anymore you can delete it and bring it back up when
+  needed again.
+
+        `# cd terraform/NAT_gateway && terraform destroy`
 
 
 ### Connecting to the registry
