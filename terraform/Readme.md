@@ -390,7 +390,7 @@ To check that the key has been added use the command:
 Now we can connect to the bastion host as before and then to the registry host using its
 private IP or name:
 
-`[ec2-user@ip-172-20-1-33 ~]$ ssh ec2-user@172.20.2.142`
+`ec2-user@ip-172-20-1-33 ~]$ ssh ec2-user@172.20.2.142`
 
 ### S3 storage
 
@@ -413,7 +413,12 @@ The code creates:
   same file.  The ${name} is defined as a variable at the begining of the file.
 
 * A bucket to store the images managed by the registry, the name of the bucket is defined
-  in the variable *bucket_name* and the policy created from the template. 
+  in the variable *bucket_name* which must be unique across all AWS.  The bucket receives
+  the policy created previously from the template.  One argument to highlight is
+  **force_destroy=true**, this causes the bucket and its contents to be deleted upon
+  execution of the **terraform destroy** command, if we don't explicitly define this
+  argument it default to false, and the bucket is not deleted if it has any objects
+  inside.
 
 A file with output definitions is also created in this directory to export the information
 needed by ansible to create the storage configuration for harbor.  The variables exported
