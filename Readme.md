@@ -5,7 +5,7 @@ https://github.com/goharbor/harbor/blob/master/README.md
 
 ### Installation
 
-I will be installing the 1.6.0 version.
+This instructions are for installing the 1.6.0 version of harbor.
 
 https://github.com/goharbor/harbor/blob/release-1.6.0/docs/installation_guide.md
 
@@ -55,8 +55,8 @@ $ tar xvf harbor1.6.0-online.tgz
 
 To build the harbor project from scratch do the following:
 
-* Export the the variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY with the values of
-  an AWS user with proper permissions
+* Export the the variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** with the
+  values of an AWS user with proper permissions
 
 * Go to **terraform/VPC** and run the following command to create the VPC where harbor
   will be installed:
@@ -103,7 +103,10 @@ To build the harbor project from scratch do the following:
       accesible since it is housed in a private subnet.  The command to create the ssh
       tunnel is like:
 
-`# ssh -i ~/Descargas/tale_toul-keypair-ireland.pem -fN -L 8080:172.20.2.180:80 centos@ec2-34-244-134-185.eu-west-1.compute.amazonaws.com`
+    ```
+    # ssh -i ~/Descargas/tale_toul-keypair-ireland.pem -fN -L 8080:172.20.2.180:80 \
+        centos@ec2-34-244-134-185.eu-west-1.compute.amazonaws.com
+    ```
 
       Now we can connect to the web interface with the URL http://localhost:8080
 
@@ -241,3 +244,107 @@ storage** in the terraform/Readme.md file.
 For the details on the creation of the configuration file for harbor by ansible see the
 section **Set up the registry host** in the ansible/Readme.md file.
 
+### Setting up TLS
+
+[Configuring harbor with HTTPS](https://github.com/goharbor/harbor/blob/master/docs/configure_https.md#configuring-harbor-with-https-access)
+
+You should never access the registry through an insecure connection over HTTP.  By default
+harbor installation does not configure a secure connection, so we will show here how to do
+it propely.
+
+#### Certificate creation
+
+We will create an x509 certificate using openssl.  This certificate created here is used
+both for accessing the web interface and for securing the registry communications.
+
+You can perform the following steps from any computer with the openssl command.  The
+official documentation includes instructions on how to do it:
+
+* Create a selfsigned CA certificate:
+
+    `# openssl req -x509 -newkey rsa:4096 -keyout CA-key.pem -out CA.pem -days 365 -nodes`
+
+  The resultin certificate is valid for 1 year.  To see its contents use the command:
+
+    `# openssl x509 -in CA.pem -text -noout`
+
+* Create a certificate signing request:
+
+    `# openssl req -newkey rsa:4096 -nodes -sha256 -keyout registry.tanami.xyz.key -out registry.tanami.xyz.csr`
+
+* If you need to access the registry with more than one name or IP create a file with the
+  variable subjectAltName. IPs are prefixed with **IP:** DNS names are prefixed with
+  **DNS:**.  The elements in the list are comma separated:
+
+    `subjectAltName = IP:172.20.2.20, DNS:registry.tanami.es`
+
+* Generate the certificate:
+
+    `# openssl x509 -req -days 365 -in registry.tanami.xyz.csr -CA CA.pem -CAkey CA-key.pem -CAcreateserial -extfile extfile.cnf -out registry.tanami.xyz.crt`
+  
+  *extfile.cnf* is the file with the subjectAltName variable defined.
+
+This certificate is valid for the IP 172.20.2.20 so the registry server should always have
+that address; a static private IP is assigned to the registry from the terraform file.
+
+#### Harbor configuration
+
+* A directory is created in the registry to hold the certificate, both its public and
+  private parts:
+
+    `# mkdir /registry_certs`
+
+  This directory is created outside the harbor path so that a new versión of harbor
+  doesn't overwrite it.
+
+* The permission are restricted to avoid unaothorized access
+
+    `# chmod 0400 /registry_certs`
+
+* The certificates are copied to the registry server into the newly created directory:
+
+    `# scp registry.tanami.xyz.crt registry.tanami.xyz.key centos@172.20.2.20:/registry_certs`
+
+* Harbor's configuration file is modified to enable the HTTPS connections, the affected
+  arguments are:
+
+    ```
+    hostname = 172.20.2.20
+    ui_url_protocol = https
+    ssl_cert = /opt/harbor/certs/registry.tanami.xyz.crt
+    ssl_cert_key = /opt/harbor/certs/registry.tanami.xyz.key
+    ```
+    
+  **hostname** must contain the name or IP that we will use to access the registry
+  with the docker client.  
+
+  **ui_url_protocol** must be set to https for obvious reasons
+
+  **ssl_cert** and **ss_cert_key** contain the paths to the public and private parts of
+  the certificate.
+
+* If this is the first setup of harbor we can just run the install.sh script.  If harbor
+  was already running, we must run the prepare script and restart harbor:
+
+    ```shell
+    # ./prepare
+    # docker-compose down
+    # docker-compose up -d
+    ```     
+
+#### Docker client configuration
+
+To enable the docker client to access the registry we must create a directory in
+**/etc/docker/certs.d/** with the same name as the hostname we are going to use to connect
+to the registry:
+
+    `# mkdir /etc/docker/certs.d/172.20.2.20`
+
+Then copy the public part of the CA certificate that signed the registry certificate, the
+file must have the name **ca.crt**:
+
+    `# scp CA.pem centos@ec2-18-203-65-237.eu-west-1.compute.amazonaws.com:/etc/docker/certs.d/172.20.2.20/ca.crt`
+
+Now we can login to the registry and use it:
+
+    `# docker login 172.20.2.20`

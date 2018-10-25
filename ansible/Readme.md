@@ -231,7 +231,8 @@ execution, but the new invetory seems to be loaded into ansible.
 
 All servers (bastion and registry) need docker and docker compose installed.  The play
 "Setup docker and docker compose" is used to install these packages and enable the docker
-service.
+service.  In addition the bastion host is setup to accept the registry's certificate for
+the secure connections.
 
 The play is executed against the group aws wich is made of the groups bastion and
 registry.
@@ -246,7 +247,9 @@ to the registry host][### SSH connection to the registry host].  This addess cha
 every execution of the terraform plan.
 
 The vars section of the registry group contains the ssh configuration needed to connect to
-the registry host, and the remote user to connect as.
+the registry host, and the remote user to connect as.  The inventory file is created from
+a template on every playbook executions (see Updating the inventory file with terraform
+data)
 
 ```
 [bastion]
@@ -269,6 +272,8 @@ The contents of this play are:
 - name: Setup docker and docker compose
   hosts: aws
   become: True
+  vars_files:
+    - terraform_outputs.var
 
   tasks:
     - name: Install EPEL repository on RedHat
@@ -291,6 +296,17 @@ The contents of this play are:
         name: docker
         state: started
         enabled: True
+      block:
+          - name: Create directory for registry certs
+            file
+              path: /etc/docker/certs.d/{{ registry_IP }}
+              state: directory
+          - name: Copy CA public cert to servers certificates
+            copy:
+              src: files/CA.pem
+              dest: /etc/docker/certs.d/{{ registry_IP }}/ca.crt
+      when: inventory_hostname == bastion_name
+
 ```
 
 All tasks have to be run as root (become=true).
@@ -301,6 +317,11 @@ one task for RedHat servers and another for CentOS servers.
 The next task installs docker and docker compose.
 
 The next taks startes and enables the docker service.
+
+Then comes a block that creates the directory to put the registry certificate, and copies
+it inside.  The directory must be created in /etc/docker/certs.d/ and the its name must be
+the same we use to connect to the server.  This block is only executed on the bastion host
+**when: inventory_hostname == bastion_name**
 
 ### Set up the registry host
 
@@ -317,6 +338,20 @@ server, they are only run aginst the registry server:
     src: /tmp/harbor-online-installer-v1.6.0.tgz
     dest: /opt
     remote_src: True
+- name: Make directory to hold certificates
+  file:
+    path: /registry_certs
+    state: directory
+    mode: 0400
+- name: Copy certificate file
+  copy:
+    src: files/registry.tanami.xyz.crt
+    dest: /registry_certs
+- name: Copy key file
+  copy:
+    src: files/registry.tanami.xyz.key
+    dest: /registry_certs
+    mode: 0600
 - name: Add harbor config file from template
   template:
     src: templates/harbor.j2
@@ -334,11 +369,19 @@ server, they are only run aginst the registry server:
 
 The first task downloads the tar file containing the online installer.
 
-The second task extracts the contents of the installer in /opt/harbor.
+The next task extracts the contents of the installer in /opt/harbor.
 
-The third task copies the main configuration file from a template.
+The next task creates a directory to hold the certificates that will be used to secure the
+web ui and the registry server.
 
-The fourth task copies the storage configuration file from a template.  The variables used
+The next two tasks copy the public and private parts of the certificate to the directory
+created before.
+
+The next task copies the main configuration file from a template. Among other things the
+template updtes the name of the host, the protocol to be used, and the path to the
+certificate to secure the registry.
+
+The next task copies the storage configuration file from a template.  The variables used
 by this template were populated in the first play (Update local inventory file) and are
 imported into this play by the following directive at the begening of the play.  The
 variables used are: iam_user_access_key; iam_user_secret_key; bucket_region; bucket_name.
@@ -353,3 +396,31 @@ The fifth task runs the installer, but only when the file
 
 After the successful complation of this play, the inventory is up and running, ready to
 accept requests.
+
+## Vault use
+
+The certificates used to secure the registry are ketp in the files directory of the
+ansible project and in the git project.
+
+The files contain the keys for the registry: registry.tanami.xyz.key and CA-key.pem.
+Should not be shared openly, so we are going to use ansible vault to encrypt them:
+
+```shell
+# ansible-vault encrypt registry.tanami.xyz.key 
+ New Vault password: 
+ Confirm New Vault password: 
+ Encryption successful
+```
+
+Same for the file CA-key.pem.  For both files it't easiest to use the same password for
+the encryption.
+
+Now when we run ansible we have to use the option --ask-vault-pass or the config option
+"ask-vault-pass = True" to get asked for the vault password.
+
+
+## Running the playbook
+
+To run the playbook use the following command, and have the vault password ready:
+
+    `# ansible-playbook --ask-vault-pass harbor.yml`

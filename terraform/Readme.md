@@ -334,14 +334,16 @@ the Medinanet network, connect via ssh to other instances in the VPC and connect
 web server via http or https; finally we assign an ssh key to connect with and a pair of
 tags.
 
-The the registry server that will contain harbor is created in the private subnet2, is
-similar to the bastión host, at least for the moment, later it will have to be a more
-powerfull machine.  The security group for ssh connections (sg-ssh-in-local) only allows
-connections from other instances in the VPC network 172.20.0.0/16, the security group for
-the outgoing connections is the same that the bastion server uses, but it could be tigthen
+The the registry server is created in the private subnet2, it is similar to the bastión
+host, at least for the moment, later it will have to be a more powerfull machine.  The
+security group for ssh connections (sg-ssh-in-local) only allows connections from other
+instances in the VPC network 172.20.0.0/16, the security group for the outgoing web
+connections is the same that the bastion server uses (sg-web-out), but it could be tigthen
 more because the registry will only be able to connect to IPs in the VPC, the security
 group for inbound web connections (sg-web-in-local) allows connections to ports 80 and 443
-only if they come from other hosts in the same VPC.
+only if they come from other hosts in the same VPC.  A static private IP has been assigned
+to the server so that we don't have to change the address defined in the x509 certificate
+used to connect via HTTPS.
 
 As with the other components we have to initialize terraform in this directory:
 

@@ -10,6 +10,7 @@ ansible_user= centos
 [registry:vars]
 ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@{{ bastion_name }}"'
 ansible_user= centos
+harbor_path = /opt/harbor
 
 [aws:children]
 bastion

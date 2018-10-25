@@ -36,6 +36,8 @@
 - name: Setup docker and docker compose
   hosts: aws
   become: True
+  vars_files:
+    - terraform_outputs.var
 
   tasks:
     - name: Install EPEL repository on RedHat
@@ -58,6 +60,17 @@
         name: docker
         state: started
         enabled: True
+    - name: Add registry certificate to docker
+      block:
+          - name: Create directory for registry certs
+            file:
+              path: /etc/docker/certs.d/{{ registry_IP }}
+              state: directory
+          - name: Copy CA public cert to servers certificates
+            copy:
+              src: files/CA.pem
+              dest: /etc/docker/certs.d/{{ registry_IP }}/ca.crt
+      when: inventory_hostname == bastion_name
 
 - name: Set up harbor
   hosts: registry
@@ -75,17 +88,31 @@
         src: /tmp/harbor-online-installer-v1.6.0.tgz
         dest: /opt
         remote_src: True
+    - name: Make directory to hold certificates
+      file:
+        path: /registry_certs
+        state: directory
+        mode: 0400
+    - name: Copy certificate file
+      copy:
+        src: files/registry.tanami.xyz.crt
+        dest: /registry_certs
+    - name: Copy key file
+      copy:
+        src: files/registry.tanami.xyz.key
+        dest: /registry_certs
+        mode: 0600
     - name: Add harbor config file from template
       template:
         src: templates/harbor.j2
-        dest:  /opt/harbor/harbor.cfg
+        dest: "{{ harbor_path }}/harbor.cfg"
     - name: Apply Storage backend template
       template:
        src: templates/config.j2
-       dest: /opt/harbor/common/templates/registry/config.yml
+       dest: "{{ harbor_path }}/common/templates/registry/config.yml"
     - name: Run installation script
       command: ./install.sh
       args:
-        chdir: /opt/harbor
+        chdir: "{{ harbor_path }}"
         creates: /data/database/postmaster.pid
 ...

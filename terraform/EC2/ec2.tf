@@ -45,6 +45,7 @@ resource "aws_instance" "registry" {
     volume_size = 8
     delete_on_termination = true
   }
+  private_ip = "172.20.2.20"
 
     tags {
         Name = "registry"
