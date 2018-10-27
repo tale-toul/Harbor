@@ -5,9 +5,10 @@ https://github.com/goharbor/harbor/blob/master/README.md
 
 ### Installation
 
-This instructions are for installing the 1.6.0 version of harbor.
-
 https://github.com/goharbor/harbor/blob/release-1.6.0/docs/installation_guide.md
+
+This instructions are intended for the installing the 1.6.0 version of harbor.
+
 
 #### Requirements
 
@@ -87,7 +88,7 @@ To build the harbor project from scratch do the following:
 * Go to ansible and run the playbook to setup the bastion and registry hots, and to
   install harbor in the registry host.
 
-        `# ansible-playbook harbor.yml`
+        `# ansible-playbook --ask-vault-pass harbor.yml`
 
 * If you don't need the NAT_gateway anymore you can delete it and bring it back up when
   needed again.

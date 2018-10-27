@@ -7,7 +7,7 @@
       shell: terraform output |tr '=' ':' > ../../ansible/terraform_outputs.var
       args:
         chdir: ../terraform/EC2/
-    - name: Add variables to file from terraform S3 outputs
+    - name: Add variables from terraform S3 outputs
       shell: terraform output |tr '=' ':' >> ../../ansible/terraform_outputs.var
       args:
         chdir: ../terraform/S3/
@@ -66,7 +66,7 @@
             file:
               path: /etc/docker/certs.d/{{ registry_IP }}
               state: directory
-          - name: Copy CA public cert to servers certificates
+          - name: Copy CA public cert from registry to docker client certificates
             copy:
               src: files/CA.pem
               dest: /etc/docker/certs.d/{{ registry_IP }}/ca.crt
