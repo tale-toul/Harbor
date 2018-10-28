@@ -149,7 +149,7 @@ ones (terraform destroy -> terraform apply).  To simplify this error prone proce
 leverage ansible and defining a new play for this.
 
 This play will run against the localhost, that will not change when terraform creates new
-EC2 instances, so a new group is created in the inventory called _local_ conatining
+EC2 instances, so a new group is created in the inventory called _local_ containing
 localhost as the only member, and the play will run agains this group.:
 
 ```
@@ -361,10 +361,12 @@ server, they are only run aginst the registry server:
   template:
     src: templates/harbor.j2
     dest: "{{ harbor_path }}/harbor.cfg"
+    mode: 0600
 - name: Apply Storage backend template
   template:
    src: templates/config.j2
    dest: "{{ harbor_path }}/common/templates/registry/config.yml"
+   mode: 0600
 - name: Run installation script
   command: ./install.sh
   args:
@@ -390,13 +392,17 @@ The next two tasks copy the public and private parts of the certificate to the d
 created before.
 
 The next task copies the main configuration file from a template. Among other things the
-template updtes the name of the host, the protocol to be used, and the path to the
-certificate to secure the registry.
+template updates the name of the host, the communications protocol to be used, the
+password for the database rot user, and the path to the certificate to secure the
+registry.  This configuration file contains sensitive information so the access
+premissions are restricted to 0600
 
-The next task copies the storage configuration file from a template.  The variables used
-by this template were populated in the first play (Update local inventory file) and are
-imported into this play by the following directive at the begening of the play.  The
-variables used are: iam_user_access_key; iam_user_secret_key; bucket_region; bucket_name.
+The next task copies the storage configuration file from a template.  This configuration
+file contains sensitive information so the access premissions are restricted to 0600The
+variables used by this template were populated in the first play (Update local inventory
+file) and are imported into this play by the following directive at the begening of the
+play.  The variables used are: iam_user_access_key; iam_user_secret_key; bucket_region;
+bucket_name.
 
 ```
   vars_files:
@@ -411,8 +417,8 @@ accept requests.
 
 ## Vault use
 
-The certificates used to secure the registry are ketp in the files directory of the
-ansible project and in the git project.
+The **certificates** used to secure the registry's communications are kept in the files
+directory of the ansible project and are included in the git project.
 
 The files contain the keys for the registry: registry.tanami.xyz.key and CA-key.pem.
 Should not be shared openly, so we are going to use ansible vault to encrypt them:
@@ -426,6 +432,31 @@ Should not be shared openly, so we are going to use ansible vault to encrypt the
 
 Same for the file CA-key.pem.  For both files it't easiest to use the same password for
 the encryption.
+
+The **db_password** configuration variable in the harbor.j2 template is also protected with
+vault, this variable contains the root password of the postgresql database.
+
+The password is protected with vault with a command like:
+
+```
+ansible-vault encrypt_string --name 'db_password' 'adlj3alvj'
+New Vault password: 
+Confirm New Vault password: 
+db_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          33623235623862613531653033326465396636393633646638326466643639306334616161613665
+          3439633861363537386332323865373761363937643837630a633163356163336634613765326238
+          63643233383736383266613066636262656430383061366563383763656365336438623438633536
+          6235316462383439390a356662396663366235353564653462383130376632613132363961643236
+          6162
+Encryption successful
+```
+The password used to encrypt the variable's contents is the same we used before for the
+certificates.
+
+The resulting ouput is copied in the file **group_vars/registry** since the inventory file
+does not support the use of vault encrypted variables, then the db_password variable can
+be referenced anywhere in the playbook.
 
 Now when we run ansible we have to use the option --ask-vault-pass or the config option
 "ask-vault-pass = True" to get asked for the vault password.

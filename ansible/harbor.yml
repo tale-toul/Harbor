@@ -111,10 +111,12 @@
       template:
         src: templates/harbor.j2
         dest: "{{ harbor_path }}/harbor.cfg"
+        mode: 0600
     - name: Apply Storage backend template
       template:
        src: templates/config.j2
        dest: "{{ harbor_path }}/common/templates/registry/config.yml"
+       mode: 0600
     - name: Run installation script
       command: ./install.sh
       args:
