@@ -329,13 +329,18 @@ The last play of the playbook contains the tasks used to install harbor in the r
 server, they are only run aginst the registry server:
 
 ```
-- name: Download harbor online installer
+- name: Stat local installer package
+  stat:
+    path: /tmp/{{ installer_package }}
+  register: installer
+- name: Download harbor installer package
   get_url:
-    url: https://storage.googleapis.com/harbor-releases/release-1.6.0/harbor-online-installer-v1.6.0.tgz
+    url: https://storage.googleapis.com/harbor-releases/{{ installer_package }}
     dest: /tmp/
+  when: not installer.stat.exists
 - name: Unpack harbor installer
   unarchive:
-    src: /tmp/harbor-online-installer-v1.6.0.tgz
+    src: /tmp/{{ installer_package }}
     dest: /opt
     remote_src: True
 - name: Make directory to hold certificates
@@ -355,19 +360,26 @@ server, they are only run aginst the registry server:
 - name: Add harbor config file from template
   template:
     src: templates/harbor.j2
-    dest:  /opt/harbor/harbor.cfg
+    dest: "{{ harbor_path }}/harbor.cfg"
 - name: Apply Storage backend template
-  template: 
+  template:
    src: templates/config.j2
-   dest: /opt/harbor/common/templates/registry/config.yml
+   dest: "{{ harbor_path }}/common/templates/registry/config.yml"
 - name: Run installation script
   command: ./install.sh
   args:
-    chdir: /opt/harbor
-        creates: /data/database/postmaster.pid
+    chdir: "{{ harbor_path }}"
+    creates: /data/database/postmaster.pid
 ```
 
-The first task downloads the tar file containing the online installer.
+The first task checks whether the installer package already exists in the filesystem, that
+is, it has been previouly downloaded.
+
+The next task downloads the tar file containing the installer package, but only if it
+doesn't already exist.  The installer package is quite big so it is a waste of time and
+bandwith if we download it repeatedly in each test run of the playbook.  The specific file
+to be downloaded is defined in the variable **installer_package** defined in the inventory
+file, so we can change the version we install easily.
 
 The next task extracts the contents of the installer in /opt/harbor.
 
@@ -391,7 +403,7 @@ variables used are: iam_user_access_key; iam_user_secret_key; bucket_region; buc
     - terraform_outputs.var
 ```
 
-The fifth task runs the installer, but only when the file
+The last task runs the installer, but only when the file
 **/data/database/postmaster.pid** doesn't exist.
 
 After the successful complation of this play, the inventory is up and running, ready to

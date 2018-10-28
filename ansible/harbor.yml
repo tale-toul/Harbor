@@ -79,13 +79,18 @@
     - terraform_outputs.var
 
   tasks:
-    - name: Download harbor online installer
+    - name: Stat local installer package
+      stat:
+        path: /tmp/{{ installer_package }}
+      register: installer
+    - name: Download harbor installer package
       get_url:
-        url: https://storage.googleapis.com/harbor-releases/release-1.6.0/harbor-online-installer-v1.6.0.tgz
+        url: https://storage.googleapis.com/harbor-releases/{{ installer_package }}
         dest: /tmp/
+      when: not installer.stat.exists
     - name: Unpack harbor installer
       unarchive:
-        src: /tmp/harbor-online-installer-v1.6.0.tgz
+        src: /tmp/{{ installer_package }}
         dest: /opt
         remote_src: True
     - name: Make directory to hold certificates

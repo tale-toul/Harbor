@@ -11,6 +11,7 @@ ansible_user= centos
 ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@{{ bastion_name }}"'
 ansible_user= centos
 harbor_path = /opt/harbor
+installer_package = harbor-offline-installer-v1.6.1.tgz
 
 [aws:children]
 bastion

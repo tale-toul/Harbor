@@ -7,7 +7,7 @@ https://github.com/goharbor/harbor/blob/master/README.md
 
 https://github.com/goharbor/harbor/blob/release-1.6.0/docs/installation_guide.md
 
-This instructions are intended for the installing the 1.6.0 version of harbor.
+This instructions are intended for the installing the 1.6.x version of harbor.
 
 
 #### Requirements
@@ -35,15 +35,16 @@ The network ports used are:
 
 #### Installation steps
 
-* Download the installer, in this case I will be using the online installer from version
-  1.6.0:
+* Download the installer, in this case I will be using the offline installer from version
+  1.6.0, this package includes all the neccesary components to have the registry up and
+  running:
 ```
-$ curl -o harbor1.6.0-online.tgz https://storage.googleapis.com/harbor-releases/release-1.6.0/harbor-online-installer-v1.6.0.tgz
+$ curl -o harbor-offline-installer-v1.6.0.tgz https://storage.googleapis.com/harbor-releases/release-1.6.0/harbor-offline-installer-v1.6.0.tgz  
 ```
 
 * Extract the tar file:
 ```
-$ tar xvf harbor1.6.0-online.tgz
+$ tar xvf harbor-offline-installer-v1.6.0.tg
 ```
 
 * Edit the harbor.cfg file according to the installation instructions
@@ -105,7 +106,7 @@ To build the harbor project from scratch do the following:
       tunnel is like:
 
     ```
-    # ssh -i ~/Descargas/tale_toul-keypair-ireland.pem -fN -L 8080:172.20.2.180:80 \
+    # ssh -i ~/Descargas/tale_toul-keypair-ireland.pem -fN -L 8080:172.20.2.20:80 \
         centos@ec2-34-244-134-185.eu-west-1.compute.amazonaws.com
     ```
 
