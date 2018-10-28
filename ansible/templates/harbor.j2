@@ -65,7 +65,7 @@ email_insecure = false
 ##The initial password of Harbor admin, only works for the first time when Harbor starts. 
 #It has no effect after the first launch of Harbor.
 #Change the admin password from UI after launching Harbor.
-harbor_admin_password = Harbor12345
+harbor_admin_password = {{ harbor_admin_password }}
 
 ##By default the auth mode is db_auth, i.e. the credentials are stored in a local database.
 #Set it to ldap_auth if you want to verify a user's credentials against an LDAP server.
@@ -112,7 +112,7 @@ ldap_group_gid = cn
 ldap_group_scope = 2
 
 #Turn on or off the self-registration feature
-self_registration = on
+self_registration = off
 
 #The expiration time (in minute) of token created by token service, default is 30 minutes
 token_expiration = 30
@@ -120,7 +120,7 @@ token_expiration = 30
 #The flag to control what users have permission to create projects
 #The default value "everyone" allows everyone to creates a project. 
 #Set to "adminonly" so that only admin user can create project.
-project_creation_restriction = everyone
+project_creation_restriction = adminonly
 
 #************************END INITIAL PROPERTIES************************
 

@@ -392,10 +392,17 @@ The next two tasks copy the public and private parts of the certificate to the d
 created before.
 
 The next task copies the main configuration file from a template. Among other things the
-template updates the name of the host, the communications protocol to be used, the
-password for the database rot user, and the path to the certificate to secure the
-registry.  This configuration file contains sensitive information so the access
-premissions are restricted to 0600
+template updates:
+
+* The name of the host.
+* The communications protocol to be used. 
+* The password for the database root user. and the path to the certificate to secure the
+* The password for the web UI admin user.
+* Disables user self registration.
+* Disables user project creation.
+
+This configuration file contains sensitive information so the access premissions are
+restricted to 0600
 
 The next task copies the storage configuration file from a template.  This configuration
 file contains sensitive information so the access premissions are restricted to 0600The
@@ -433,13 +440,14 @@ Should not be shared openly, so we are going to use ansible vault to encrypt the
 Same for the file CA-key.pem.  For both files it't easiest to use the same password for
 the encryption.
 
-The **db_password** configuration variable in the harbor.j2 template is also protected with
-vault, this variable contains the root password of the postgresql database.
+The **db_password** and **harbor_admin_password** configuration variables in the harbor.j2
+template are also protected with vault, these variables contain the root password of the
+postgresql database and the harbor web ui admin's password.
 
 The password is protected with vault with a command like:
 
 ```
-ansible-vault encrypt_string --name 'db_password' 'adlj3alvj'
+# ansible-vault encrypt_string --name 'db_password' 'adlj3alvj'
 New Vault password: 
 Confirm New Vault password: 
 db_password: !vault |
@@ -451,8 +459,8 @@ db_password: !vault |
           6162
 Encryption successful
 ```
-The password used to encrypt the variable's contents is the same we used before for the
-certificates.
+The vault password used to encrypt the variable's contents is the same we used before for
+the certificates.
 
 The resulting ouput is copied in the file **group_vars/registry** since the inventory file
 does not support the use of vault encrypted variables, then the db_password variable can
