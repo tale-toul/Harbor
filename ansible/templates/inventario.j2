@@ -1,5 +1,5 @@
 [bastion]
-{{ bastion_name }}
+registry.taletoul.com
 
 [bastion:vars]
 ansible_user= centos
@@ -8,14 +8,10 @@ ansible_user= centos
 {{ registry_IP }}
 
 [registry:vars]
-ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@{{ bastion_name }}"'
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@{{ groups['bastion'][0] }}"'
 ansible_user= centos
 harbor_path = /opt/harbor
 installer_package = harbor-offline-installer-v1.6.1.tgz
-
-[aws:children]
-bastion
-registry
 
 [local]
 localhost   ansible_connection=local

@@ -5,3 +5,4 @@
 *.lock.info
 *.retry
 ansible/terraform_outputs.var
+vault_pass

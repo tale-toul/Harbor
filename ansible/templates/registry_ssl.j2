@@ -1,0 +1,38 @@
+<VirtualHost _default_:443>
+
+DocumentRoot "/var/www/html"
+ServerName {{ groups['bastion'][0] }}:443
+
+ErrorLog logs/{{ groups['bastion'][0] }}_ssl_error_log
+TransferLog logs/{{ groups['bastion'][0] }}_ssl_access_log
+LogLevel warn
+
+SSLEngine on
+SSLProtocol all -SSLv2 -SSLv3 -TLSv1
+SSLCipherSuite HIGH:3DES:!aNULL:!MD5:!SEED:!IDEA
+
+SSLCertificateFile /etc/httpd/tls/certs/registry.crt
+SSLCertificateKeyFile /etc/httpd/tls/private/registry.key
+
+SSLCompression off
+SSLProxyEngine on
+
+Header always set "Docker-Distribution-Api-Version" "registry/2.0"
+Header onsuccess set "Docker-Distribution-Api-Version" "registry/2.0"
+RequestHeader set X-Forwarded-Proto "https"
+
+ProxyRequests     off
+ProxyPreserveHost on
+
+# No proxy for /error/ (Apache HTTPd errors messages)
+ProxyPass /error/ !
+
+ProxyPass        / https://{{ registry_IP }}/
+ProxyPassReverse / https://{{ registry_IP }}/
+
+SSLProxyCheckPeerCN off
+SSLProxyCheckPeerName off
+
+CustomLog logs/registry_ssl_request_log \
+          "%t %h %{SSL_PROTOCOL}x %{SSL_CIPHER}x \"%r\" %b"
+</VirtualHost>                                  

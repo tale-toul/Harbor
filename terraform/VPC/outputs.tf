@@ -30,3 +30,7 @@ output "sg-web-out_id" {
 output "sg-web-in-local_id" {
     value = "${aws_security_group.sg-web-in-local.id}"
 }
+
+output "sg-web-in-medina_id" {
+    value = "${aws_security_group.sg-web-in-medina.id}"
+}

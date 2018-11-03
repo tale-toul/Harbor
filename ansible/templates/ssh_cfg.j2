@@ -1,6 +1,6 @@
 Host 172.20.*.*
         IdentityFile /home/tale/Descargas/tale_toul-keypair-ireland.pem
-        ProxyCommand ssh centos@{{ bastion_name }} -W %h:%p 
+        ProxyCommand ssh centos@{{ groups['bastion'][0] }} -W %h:%p 
 
-Host {{ bastion_name }}
+Host {{ groups['bastion'][0] }}
         IdentityFile /home/tale/Descargas/tale_toul-keypair-ireland.pem

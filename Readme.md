@@ -57,28 +57,28 @@ $ tar xvf harbor-offline-installer-v1.6.0.tg
 
 To build the harbor project from scratch do the following:
 
-* Export the the variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** with the
+1. Export the the variables **AWS_ACCESS_KEY_ID** and **AWS_SECRET_ACCESS_KEY** with the
   values of an AWS user with proper permissions
 
-* Go to **terraform/VPC** and run the following command to create the VPC where harbor
+1. Go to **terraform/VPC** and run the following command to create the VPC where harbor
   will be installed:
 
         `# terraform apply`
 
-* Go to **terraform/NAT_gateway** and run the following command to create the NAT gateway for
+1. Go to **terraform/NAT_gateway** and run the following command to create the NAT gateway for
   harbor's private subnet:
 
         `# terraform apply`
 
-* Go to **terraform/EC2** and run:
+1. Go to **terraform/EC2** and run:
 
         `# terraform apply`
 
-* Go to **terraform/S3** and run:
+1. Go to **terraform/S3** and run:
 
         `# terraform apply`
 
-* Add the ssh key with permission to connect to the EC2 instances to the ssh agent:
+1. Add the ssh key with permission to connect to the EC2 instances to the ssh agent:
 
         `# ssh-add Descargas/tale_toul-keypair-ireland.pem`
  
@@ -86,12 +86,12 @@ To build the harbor project from scratch do the following:
 
         `# ssh-add -L`
 
-* Go to ansible and run the playbook to setup the bastion and registry hots, and to
+1. Go to ansible and run the playbook to setup the bastion and registry hots, and to
   install harbor in the registry host.
 
         `# ansible-playbook --ask-vault-pass harbor.yml`
 
-* If you don't need the NAT_gateway anymore you can delete it and bring it back up when
+1. If you don't need the NAT_gateway anymore you can delete it and bring it back up when
   needed again.
 
         `# cd terraform/NAT_gateway && terraform destroy`
@@ -149,6 +149,39 @@ To test that the registry is working properly we will upload an image:
 * Push the image to the harbor registry:
 
     `$ sudo docker push 172.20.2.112/pro1/centos`
+
+### Harbor's lifecycle
+
+* To stop Harbor use the command:
+
+`$ sudo docker-compose stop`
+
+* To start Harbor use the command:
+
+`$ sudo docker-compose start`
+
+* To update Harbor's configuration, first stop Harbor; then update harbor.cfg; then run
+  the *prepare* script to populate the configuration. Finally start Harbor: 
+
+```shell
+$ sudo docker-compose down -v
+$ vim harbor.cfg
+$ sudo ./prepare
+$ sudo docker-compose up -d
+```
+
+* To remove Harbor's containers while keeping the image data and Harbor's database files on
+  the file system:
+
+`$ sudo docker-compose down -v`
+
+* To remove Harbor's database and image data (for a clean re-installation):
+
+```shell
+$ sudo rm -r /data/database
+$ sudo rm -r /data/registry
+```
+
 
 ### S3 storage backend
 
@@ -340,13 +373,62 @@ To enable the docker client to access the registry we must create a directory in
 **/etc/docker/certs.d/** with the same name as the hostname we are going to use to connect
 to the registry:
 
-    `# mkdir /etc/docker/certs.d/172.20.2.20`
+`# mkdir /etc/docker/certs.d/172.20.2.20`
 
 Then copy the public part of the CA certificate that signed the registry certificate, the
 file must have the name **ca.crt**:
 
-    `# scp CA.pem centos@ec2-18-203-65-237.eu-west-1.compute.amazonaws.com:/etc/docker/certs.d/172.20.2.20/ca.crt`
+`# scp CA.pem centos@ec2-18-203-65-237.eu-west-1.compute.amazonaws.com:/etc/docker/certs.d/172.20.2.20/ca.crt`
 
 Now we can login to the registry and use it:
 
-    `# docker login 172.20.2.20`
+`# docker login 172.20.2.20`
+
+### Setting up a Reverse Proxy
+
+[Official docker documentation](https://docs.docker.com/registry/recipes/apache/)
+
+In this section we will setup a reverse proxy in the bastion host so that we can access
+the registry from hosts that don't have direct access to the registry server.  In this
+configuration we don't limit what hosts can access the registry in the reverse proxy.
+
+The reverse proxy only allows HTTPS connections, between client and proxy and between
+proxy and registry, in both connections the same server certificate is used.
+
+We will use apache for the reverse proxy.
+
+We need to create an x509 certificate, it will be valid for the name **registry.taletoul.com**
+and for the IP **172.20.2.20**, which are the DNS of the registry service 
+and the static private IP for the registry server.  During infrastructure
+creation time an elastic IP will be assigned to the bastion host and a DNS record wil be
+created linking that IP with the DNS name.
+
+We create a virtual host for the registry which will respond to requests for the name
+registry.taletoul.com, and the port 443; it will use the x509 certificates we created
+before so it must use the same name we used in that certificate, and will have the SSL
+reverse proxy option enabled (SSLProxyEngine on) so it can connect to a backend server
+using a secure connection, the docker registry documentation states that the following
+headers must be setup:
+
+```
+Header always set "Docker-Distribution-Api-Version" "registry/2.0"
+Header onsuccess set "Docker-Distribution-Api-Version" "registry/2.0"
+RequestHeader set X-Forwarded-Proto "https"
+```
+
+The requests proxied from the bastion to the registry host will keep the original
+Host header, not a new one with the name of the backend server (ProxyPreserveHost on) and
+the reverse proxy will not enforce that the name of the backend server matches that of the
+certificate it uses for the connection.
+
+```
+SSLProxyCheckPeerCN off
+SSLProxyCheckPeerName off
+```
+
+All requests received by this virtual host are sent over to the backend:
+
+```
+ProxyPass        / https://{{ registry_IP }}/
+ProxyPassReverse / https://{{ registry_IP }}/
+```

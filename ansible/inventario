@@ -1,19 +1,17 @@
 [bastion]
-ec2-52-49-157-52.eu-west-1.compute.amazonaws.com
+registry.taletoul.com
 
 [bastion:vars]
 ansible_user= centos
 
 [registry]
-172.20.2.94
+172.20.2.20
 
 [registry:vars]
-ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@ec2-52-49-157-52.eu-west-1.compute.amazonaws.com"'
+ansible_ssh_common_args='-o ProxyCommand="ssh -W %h:%p -q centos@registry.taletoul.com"'
 ansible_user= centos
-
-[aws:children]
-bastion
-registry
+harbor_path = /opt/harbor
+installer_package = harbor-offline-installer-v1.6.1.tgz
 
 [local]
 localhost   ansible_connection=local

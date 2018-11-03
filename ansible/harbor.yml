@@ -25,16 +25,48 @@
     - name: Reload inventory file
       meta: refresh_inventory
 
-- name: Dummy connection to bastion host
+- name: Set up bastion host
   hosts: bastion
+  become: True
+  vars_files:
+    - terraform_outputs.var
 
   tasks:
-    - name: Just a simple message
-      debug:
-        msg: Hello from bastion
+    - name: Install web server group
+      yum:
+        name: "@web-server"
+    - name: Apply httpd config file for reverse proxy virtual host
+      template:
+        src: templates/registry_ssl.j2
+        dest: /etc/httpd/conf.d/registry_ssl.conf
+    - name: Make directory to store web public certificates
+      file:
+        path: /etc/httpd/tls/certs
+        state: directory
+        mode: 0755
+    - name: Make directory to store web private certificates keys
+      file:
+        path: /etc/httpd/tls/private
+        state: directory
+        mode: 0700
+    - name: Add TLS public certificate file for virtual host {{ groups['bastion'][0] }}
+      copy:
+        src: files/registry.crt
+        dest: /etc/httpd/tls/certs/
+        mode: 0664
+    - name: Add TLS private certificate file for virtual host {{ groups['bastion'][0] }}
+      copy:
+        src: files/registry.key
+        dest: /etc/httpd/tls/private
+        mode: 0600
+    - name: Enable and start httpd service
+      service:
+        name: httpd
+        state: started
+        enabled: True
 
-- name: Setup docker and docker compose
-  hosts: aws
+- name: Setup registry server
+  hosts: registry
   become: True
   vars_files:
     - terraform_outputs.var
@@ -60,25 +92,6 @@
         name: docker
         state: started
         enabled: True
-    - name: Add registry certificate to docker
-      block:
-          - name: Create directory for registry certs
-            file:
-              path: /etc/docker/certs.d/{{ registry_IP }}
-              state: directory
-          - name: Copy CA public cert from registry to docker client certificates
-            copy:
-              src: files/CA.pem
-              dest: /etc/docker/certs.d/{{ registry_IP }}/ca.crt
-      when: inventory_hostname == bastion_name
-
-- name: Set up harbor
-  hosts: registry
-  become: True
-  vars_files:
-    - terraform_outputs.var
-
-  tasks:
     - name: Stat local installer package
       stat:
         path: /tmp/{{ installer_package }}
@@ -100,11 +113,11 @@
         mode: 0400
     - name: Copy certificate file
       copy:
-        src: files/registry.tanami.xyz.crt
+        src: files/registry.crt
         dest: /registry_certs
     - name: Copy key file
       copy:
-        src: files/registry.tanami.xyz.key
+        src: files/registry.key
         dest: /registry_certs
         mode: 0600
     - name: Add harbor config file from template

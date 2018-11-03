@@ -181,3 +181,21 @@ resource "aws_security_group" "sg-web-in-local" {
         Project = "harbor"
     }
 }
+
+resource "aws_security_group" "sg-web-in-medina" {
+    name = "web-in-medina"
+    description = "Allow http and https inbound connections from MedinaNet"
+    vpc_id = "${aws_vpc.vpc.id}"
+
+    ingress {
+        from_port = 443
+        to_port = 443
+        protocol = "tcp"
+		cidr_blocks = ["185.192.0.0/10"]
+    }
+
+    tags {
+        Name = "sg-web-in-medina"
+        Project = "harbor"
+    }
+}

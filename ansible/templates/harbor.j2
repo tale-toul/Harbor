@@ -4,7 +4,7 @@
 _version = 1.6.0
 #The IP address or hostname to access admin UI and registry service.
 #DO NOT use localhost or 127.0.0.1, because Harbor needs to be accessed by external clients.
-hostname = {{ groups['registry'][0] }}
+hostname = {{ groups['bastion'][0] }}
 
 #The protocol for accessing the UI and token/notification service, by default it is http.
 #It can be set to https if ssl is enabled on nginx.
@@ -20,8 +20,8 @@ max_job_workers = 5
 customize_crt = on
 
 #The path of cert and key files for nginx, they are applied only the protocol is set to https
-ssl_cert = /registry_certs/registry.tanami.xyz.crt
-ssl_cert_key = /registry_certs/registry.tanami.xyz.key
+ssl_cert = /registry_certs/registry.crt
+ssl_cert_key = /registry_certs/registry.key
 
 #The path of secretkey storage
 secretkey_path = /data
