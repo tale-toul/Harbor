@@ -86,15 +86,13 @@ To build the harbor project from scratch do the following:
 
         `# ssh-add -L`
 
+1. Delete the entries for the hosts: _registry.taletoul.com_ and _172.20.2.20_ from the
+   file **~/.ssh/known_hosts**.
+
 1. Go to ansible and run the playbook to setup the bastion and registry hots, and to
   install harbor in the registry host.
 
         `# ansible-playbook --ask-vault-pass harbor.yml`
-
-1. If you don't need the NAT_gateway anymore you can delete it and bring it back up when
-  needed again.
-
-        `# cd terraform/NAT_gateway && terraform destroy`
 
 
 ### Connecting to the registry
@@ -133,6 +131,25 @@ To build the harbor project from scratch do the following:
       so the command to log in is:
 
         `sudo docker login http://172.20.2.180`
+
+* Via the reverse proxy.
+    * To access the website just enter the URL
+      [https://registry.taletoul.com](https://registry.taletoul.com) in the browser.
+
+    * To connect with the docker client, create the directory
+      /etc/docker/certs.d/registry.taletoul.com/ and copy the public part of the CA certificate that signed the registry certificate, the
+      file must have the name **ca.crt**:
+
+    ```shell
+    # mkdir /etc/docker/certs.d/registry.taletoul.com/ 
+    # cp ca.crt /etc/docker/certs.d/registry.taletoul.com/ 
+    ```
+    * Now we can login to the registry and use it:
+
+    ```shell
+    # docker login registry.taletoul.com
+    ```
+
 
 #### Testing the registry
 
@@ -175,18 +192,29 @@ $ sudo docker-compose up -d
 
 `$ sudo docker-compose down -v`
 
-* To remove Harbor's database and image data (for a clean re-installation):
+* To remove Harbor's database and image data for a clean re-installation:
 
-```shell
-$ sudo rm -r /data/database
-$ sudo rm -r /data/registry
-```
+  Stop docker as explained before.
 
+  * When using the filesystem storage backend:
+
+    ```shell
+    $ sudo rm -r /data/database
+    $ sudo rm -r /data/registry
+    ```
+
+  * When using the s3 storage backend:
+
+    Delete the contents of the S3 bucket, then the contents of the database:
+
+    ```shell
+    $ sudo rm -r /data/database
+    ```
 
 ### S3 storage backend
 
 By default harbor stores images on the local filesystem, while this is good for testing it
-might not be the best option for a productio system.  In this section we will see how to
+might not be the best option for a production system.  In this section we will see how to
 configure an AWS S3 bucket as the storage backend for harbor. 
 
 The storage configuration is defined in the section **storage** of the file
@@ -211,7 +239,7 @@ The documentation for this configuration options can be found at [docker registr
 storage](https://docs.docker.com/registry/configuration/#storage) 
 
 This configuration changes must be made before the **install.sh** script is run, otherwise
-the configuration that will be used is the one using the local filesystem as storage
+the configuration that will be used is the one for the local filesystem as storage
 backend.
 
 The access and secret keys should belong to an AWS user (lenan) with just enough
@@ -261,7 +289,7 @@ This policy is defined to allow the actions recomended by the doker registry [do
 
 This configuration is enough to use the S3 bucket as backend storage for harbor, however
 this configuration is static and any changes in the bucket or the user will requiere a
-manual reconfiguration the config.yml and the policy files.  In the next section we will
+manual reconfiguration of the config.yml and policy files.  In the next section we will
 see how to automate the creation of the user, bucket and bucket policy using terraform,
 and apply the configuration with ansible.
 
@@ -367,23 +395,6 @@ that address; a static private IP is assigned to the registry from the terraform
     # docker-compose up -d
     ```     
 
-#### Docker client configuration
-
-To enable the docker client to access the registry we must create a directory in
-**/etc/docker/certs.d/** with the same name as the hostname we are going to use to connect
-to the registry:
-
-`# mkdir /etc/docker/certs.d/172.20.2.20`
-
-Then copy the public part of the CA certificate that signed the registry certificate, the
-file must have the name **ca.crt**:
-
-`# scp CA.pem centos@ec2-18-203-65-237.eu-west-1.compute.amazonaws.com:/etc/docker/certs.d/172.20.2.20/ca.crt`
-
-Now we can login to the registry and use it:
-
-`# docker login 172.20.2.20`
-
 ### Setting up a Reverse Proxy
 
 [Official docker documentation](https://docs.docker.com/registry/recipes/apache/)
@@ -432,3 +443,116 @@ All requests received by this virtual host are sent over to the backend:
 ProxyPass        / https://{{ registry_IP }}/
 ProxyPassReverse / https://{{ registry_IP }}/
 ```
+
+### Harbor CLI
+
+https://github.com/int32bit/python-harborclient
+
+This is a command line tool that allows us interact with the registry without the need to
+connect to the web ui.
+
+
+#### Installation
+
+The recommended installation method consists of creating a docker image from the sources.
+
+Start by cloning the github repository:
+
+```shell
+# git clone https://github.com/int32bit/python-harborclient.git
+```
+
+Then run the build process:
+
+
+```shell
+# cd python-harborclient
+# sudo docket build -t registry.taletoul.com/harborclient .
+```
+
+To check that the cli works properly use the command:
+
+```shell
+# docker run -ti registry.taletoul.com/harborclient harbor help
+```
+
+If the previous command was successful we can go ahead and contact the registry server,
+the following command is quite long but later we will see how to make it shorter.
+
+
+```shell
+# docker run --rm -ti -e HARBOR_USERNAME="admin" -e HARBOR_PASSWORD="XXX" \
+  -e HARBOR_URL="https://registry.taletoul.com" -e HARBOR_PROJECT=1 \
+  -v /etc/docker/certs.d/registry.taletoul.com/ca.crt:/ca.crt:Z \
+  registry.taletoul.com/harborclient harbor --os-cacert /ca.crt info
++--------------------------------+-----------------------+
+| Property                       | Value                 |
++--------------------------------+-----------------------+
+| admiral_endpoint               | NA                    |
+| auth_mode                      | db_auth               |
+| disk_free                      | 3897479168            |
+| disk_total                     | 8578400256            |
+| harbor_version                 | v1.6.1-98bcac6c       |
+| has_ca_root                    | False                 |
+| next_scan_all                  | 0                     |
+| project_creation_restriction   | adminonly             |
+| read_only                      | False                 |
+| registry_storage_provider_name | filesystem            |
+| registry_url                   | registry.taletoul.com |
+| self_registration              | False                 |
+| with_admiral                   | False                 |
+| with_chartmuseum               | False                 |
+| with_clair                     | False                 |
+| with_notary                    | False                 |
++--------------------------------+-----------------------+
+```
+
+In the previous command we define the user and password to connect to the registry:
+
+`-e HARBOR_USERNAME="admin" -e HARBOR_PASSWORD="XXX"`
+
+Then the registry URL:
+
+`-e HARBOR_URL="https://registry.taletoul.com"`
+
+Then the project, this is mandatory although we are running a command unrelated to any
+project, project 1 doesn't even exist in the registry:
+
+`-e HARBOR_PROJECT=1`
+
+Then we add the certificate to verify the registry certificate, otherwise we get a message
+saying that the registry certificate could not be verified.  Instead of this we can use
+the option --insecure to avoid the certificate verification. The **Z** at the end is
+needed to avoid problems with SELinux:
+
+`-v /etc/docker/certs.d/registry.taletoul.com/ca.crt:/ca.crt:Z`
+
+Finally we specify the image to use, and the CLI command:
+
+`registry.taletoul.com/harborclient harbor --os-cacert /ca.crt info`
+
+This command uses the option **--os-cacert /ca.crt** to specify the CA certificate to
+validate the registry's certificate, and runs the command **info** to get information
+about the remote registry.
+
+To reduce the typing we can create an alias with the commong arguments:
+
+```shell
+# alias harbor='sudo docker run --rm -ti -e HARBOR_USERNAME="admin" -e
+HARBOR_PASSWORD="NaHCO3" -e HARBOR_URL="https://registry.taletoul.com" \
+-e HARBOR_PROJECT=1 -v /etc/docker/certs.d/registry.taletoul.com/ca.crt:/ca.crt:Z \
+registry.taletoul.com/harborclient harbor --os-cacert /ca.crt'
+```
+
+And then use a simpler command like:
+
+`# harbor info`
+
+#### Limitations
+
+The harbor cli cannot do all of the operations that the admin can do through the web ui,
+for example it cannot add members to a project.
+
+### Role Based Access Control
+
+[Documentation Reference](https://github.com/goharbor/harbor/blob/master/docs/user_guide.md#role-based-access-controlrbac)

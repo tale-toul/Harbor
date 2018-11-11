@@ -51,8 +51,8 @@ This variables are only defined for the current shell.
 
 ### Project structure
 
-The terraform project will consist of several connected elements, each one of them
-residing in its own directory.  
+The terraform project will consist of several connected elements, each residing in its own
+directory.
 
 With this setup we can start, stop and modify each element without affecting the others.
 
@@ -476,10 +476,11 @@ The code creates:
   clear text in the state file of terraform.  In a future version the key may be
   encrypted.
 
-* A bucket policy from a template, the template requieres two variables ${user} with the
-  name of the user that will access the bucket; and ${name} with the globally unique name
-  of the bucket.  The ${user} is taken from the user resource previously created in the
-  same file.  The ${name} is defined as a variable at the begining of the file.
+* A bucket policy from a template, the template requieres two variables ${user} which
+  contains the name of the user that will access the bucket; and ${name} which the
+  globally unique name of the bucket.  The ${user} is taken from the user resource
+  previously created in the same file.  The ${name} is defined as a variable at the
+  begining of the file.
 
 * A bucket to store the images managed by the registry, the name of the bucket is defined
   in the variable *bucket_name* which must be unique across all AWS.  The bucket receives
